@@ -18,7 +18,7 @@ public:
 
         QTreeView *treeView = new QTreeView(this);
         treeView->setModel(model);
-        treeView->setRootIndex(model->index(QDir::homePath())); // Starts at the home directory
+        treeView->setRootIndex(QModelIndex()); // Starts at "This PC"
 
         connect(treeView, &QTreeView::doubleClicked, this, [model](const QModelIndex &index) {
             if (!model->isDir(index)) { // Only open files
