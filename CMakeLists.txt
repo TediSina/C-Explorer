@@ -16,9 +16,6 @@ set(TS_FILES C-Explorer_sq_AL.ts)
 
 set(PROJECT_SOURCES
         main.cpp
-        mainwindow.cpp
-        mainwindow.h
-        mainwindow.ui
         ${TS_FILES}
 )
 
@@ -26,6 +23,8 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
     qt_add_executable(C-Explorer
         MANUAL_FINALIZATION
         ${PROJECT_SOURCES}
+
+        cexplorer.h cexplorer.cpp
     )
 # Define target properties for Android with Qt 6 as:
 #    set_property(TARGET C-Explorer APPEND PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR
