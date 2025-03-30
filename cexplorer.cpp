@@ -44,17 +44,38 @@ CExplorer::CExplorer() {
 
 void CExplorer::showContextMenu(const QPoint &pos) {
     selectedIndex = treeView->indexAt(pos);
-    if (!selectedIndex.isValid() || model->isDir(selectedIndex))
-        return; // Don't show the menu if it's a folder or drive
+    if (!selectedIndex.isValid()) return;
+
+    QString filePath = model->filePath(selectedIndex);
+    QFileInfo fileInfo(filePath);
 
     QMenu contextMenu(this);
-    QAction *renameAction = contextMenu.addAction("Rename");
-    QAction *deleteAction = contextMenu.addAction("Delete");
-    QAction *copyAction = contextMenu.addAction("Copy");
 
-    connect(renameAction, &QAction::triggered, this, &CExplorer::renameFile);
-    connect(deleteAction, &QAction::triggered, this, &CExplorer::deleteFile);
-    connect(copyAction, &QAction::triggered, this, &CExplorer::copyFile);
+    if (fileInfo.isFile()) {
+        // File Context Menu
+        QAction *renameAction = contextMenu.addAction("Rename");
+        QAction *deleteAction = contextMenu.addAction("Delete");
+        QAction *copyAction = contextMenu.addAction("Copy");
+
+        connect(renameAction, &QAction::triggered, this, &CExplorer::renameFile);
+        connect(deleteAction, &QAction::triggered, this, &CExplorer::deleteFile);
+        connect(copyAction, &QAction::triggered, this, &CExplorer::copyFile);
+    }
+    else if (fileInfo.isDir() && !filePath.endsWith(":/")) {
+        // Folder Context Menu (excluding drives)
+        QAction *renameAction = contextMenu.addAction("Rename");
+        QAction *deleteAction = contextMenu.addAction("Delete");
+        QAction *copyAction = contextMenu.addAction("Copy");
+
+        connect(renameAction, &QAction::triggered, this, &CExplorer::renameFolder);
+        connect(deleteAction, &QAction::triggered, this, &CExplorer::deleteFolder);
+        connect(copyAction, &QAction::triggered, this, &CExplorer::copyFolder);
+    }
+    else {
+        // Drive Context Menu (Show Properties)
+        QAction *propertiesAction = contextMenu.addAction("Properties");
+        connect(propertiesAction, &QAction::triggered, this, &CExplorer::showDriveProperties);
+    }
 
     contextMenu.exec(treeView->viewport()->mapToGlobal(pos));
 }
@@ -115,4 +136,20 @@ void CExplorer::copyFile() {
     clipboard->setMimeData(mimeData);
 
     QMessageBox::information(this, "Copy", "File copied to clipboard!");
+}
+
+void CExplorer::renameFolder() {
+
+}
+
+void CExplorer::copyFolder() {
+
+}
+
+void CExplorer::deleteFolder() {
+
+}
+
+void CExplorer::showDriveProperties() {
+
 }

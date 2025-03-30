@@ -16,6 +16,10 @@ private slots:
     void renameFile();
     void deleteFile();
     void copyFile();
+    void renameFolder();
+    void deleteFolder();
+    void copyFolder();
+    void showDriveProperties();
 
 private:
     QFileSystemModel *model;
