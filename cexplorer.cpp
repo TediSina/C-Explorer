@@ -15,6 +15,7 @@
 #include <QClipboard>
 #include <QMimeData>
 #include <QGuiApplication>
+#include <QApplication>
 
 CExplorer::CExplorer() {
     QWidget *centralWidget = new QWidget(this);
@@ -66,10 +67,12 @@ void CExplorer::showContextMenu(const QPoint &pos) {
         QAction *renameAction = contextMenu.addAction("Rename");
         QAction *deleteAction = contextMenu.addAction("Delete");
         QAction *copyAction = contextMenu.addAction("Copy");
+        QAction *copyPathAction = contextMenu.addAction("Copy Folder Path");
 
         connect(renameAction, &QAction::triggered, this, &CExplorer::renameFolder);
         connect(deleteAction, &QAction::triggered, this, &CExplorer::deleteFolder);
         connect(copyAction, &QAction::triggered, this, &CExplorer::copyFolder);
+        connect(copyPathAction, &QAction::triggered, this, &CExplorer::copyFolderPath);
     }
     else {
         // Drive Context Menu (Show Properties)
@@ -165,6 +168,20 @@ void CExplorer::renameFolder() {
 
 void CExplorer::copyFolder() {
 
+}
+
+void CExplorer::copyFolderPath() {
+    if (!selectedIndex.isValid()) return;
+
+    QString folderPath = model->filePath(selectedIndex);
+    QFileInfo folderInfo(folderPath);
+
+    if (!folderInfo.isDir()) return;
+
+    QClipboard *clipboard = QApplication::clipboard();
+    clipboard->setText(folderPath);
+
+    QMessageBox::information(this, "Copied", "Folder path copied to clipboard.");
 }
 
 void CExplorer::deleteFolder() {
