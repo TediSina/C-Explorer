@@ -1,5 +1,9 @@
 #include "cexplorer.h"
+
+#ifdef Q_OS_WIN
+#include <windows.h>
 #include <shlobj.h>
+#endif
 
 #include <QTreeView>
 #include <QFileSystemModel>
@@ -16,6 +20,7 @@
 #include <QMimeData>
 #include <QGuiApplication>
 #include <QApplication>
+#include <QDir>
 
 CExplorer::CExplorer() {
     QWidget *centralWidget = new QWidget(this);
@@ -185,7 +190,42 @@ void CExplorer::copyFolderPath() {
 }
 
 void CExplorer::deleteFolder() {
+    if (!selectedIndex.isValid()) return;
 
+    QString folderPath = model->filePath(selectedIndex);
+    QFileInfo folderInfo(folderPath);
+
+    if (!folderInfo.isDir()) return; // Ensure it's a folder
+
+    // Confirm deletion
+    QMessageBox::StandardButton confirm = QMessageBox::warning(
+        this, "Delete Folder",
+        "Are you sure you want to delete this folder?\nThis action cannot be undone.",
+        QMessageBox::Yes | QMessageBox::No);
+
+    if (confirm != QMessageBox::Yes) return;
+
+#ifdef Q_OS_WIN
+    // Attempt to move folder to Recycle Bin (Windows)
+    QString pathWithNull = QDir::toNativeSeparators(folderPath) + '\0';
+
+    SHFILEOPSTRUCT fileOp = {};
+    fileOp.wFunc = FO_DELETE;
+    fileOp.pFrom = reinterpret_cast<LPCWSTR>(pathWithNull.utf16());
+    fileOp.fFlags = FOF_ALLOWUNDO | FOF_NOCONFIRMATION | FOF_SILENT;
+
+    if (SHFileOperation(&fileOp) == 0) {
+        return; // Successfully moved to Recycle Bin
+    }
+#endif
+
+    // If Recycle Bin move fails or not on Windows, delete permanently
+    QDir dir(folderPath);
+    if (dir.removeRecursively()) {
+        QMessageBox::information(this, "Deleted", "Folder deleted successfully.");
+    } else {
+        QMessageBox::warning(this, "Error", "Failed to delete folder.");
+    }
 }
 
 void CExplorer::showDriveProperties() {
