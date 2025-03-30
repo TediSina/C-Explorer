@@ -44,8 +44,8 @@ CExplorer::CExplorer() {
 
 void CExplorer::showContextMenu(const QPoint &pos) {
     selectedIndex = treeView->indexAt(pos);
-    if (!selectedIndex.isValid())
-        return;
+    if (!selectedIndex.isValid() || model->isDir(selectedIndex))
+        return; // Don't show the menu if it's a folder or drive
 
     QMenu contextMenu(this);
     QAction *renameAction = contextMenu.addAction("Rename");
