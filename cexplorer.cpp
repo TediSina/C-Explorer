@@ -139,7 +139,28 @@ void CExplorer::copyFile() {
 }
 
 void CExplorer::renameFolder() {
+    if (!selectedIndex.isValid()) return;
 
+    QString oldPath = model->filePath(selectedIndex);
+    QFileInfo folderInfo(oldPath);
+
+    if (!folderInfo.isDir()) return;
+
+    bool ok;
+    QString newName = QInputDialog::getText(this, "Rename Folder",
+                                            "Enter new folder name:", QLineEdit::Normal,
+                                            folderInfo.fileName(), &ok);
+
+    if (!ok || newName.isEmpty() || newName == folderInfo.fileName()) return;
+
+    QString newPath = folderInfo.absoluteDir().absoluteFilePath(newName);
+
+    QDir dir;
+    if (dir.rename(oldPath, newPath)) {
+        QMessageBox::information(this, "Success", "Folder renamed successfully.");
+    } else {
+        QMessageBox::warning(this, "Error", "Failed to rename folder.");
+    }
 }
 
 void CExplorer::copyFolder() {
