@@ -106,26 +106,31 @@ void CExplorer::deleteFile() {
 
     QString filePath = model->filePath(selectedIndex);
 
+    // Confirm deletion
     if (QMessageBox::warning(this, "Delete", "Are you sure you want to delete this file?",
                              QMessageBox::Yes | QMessageBox::No) == QMessageBox::No) {
         return;
     }
 
+#ifdef Q_OS_WIN
     // Convert file path to wchar_t for SHFileOperation
     std::wstring wFilePath = filePath.toStdWString() + L'\0'; // Needs double null termination
 
-    SHFILEOPSTRUCT fileOp;
+    SHFILEOPSTRUCTW fileOp;
     ZeroMemory(&fileOp, sizeof(fileOp));
     fileOp.wFunc = FO_DELETE;
     fileOp.pFrom = wFilePath.c_str();
     fileOp.fFlags = FOF_ALLOWUNDO | FOF_NOCONFIRMATION;  // Send to Recycle Bin
 
     // Try moving to Recycle Bin
-    if (SHFileOperation(&fileOp) != 0) {
-        // If failed, delete permanently
-        if (!QFile::remove(filePath)) {
-            QMessageBox::warning(this, "Error", "Failed to delete the file.");
-        }
+    if (SHFileOperationW(&fileOp) == 0) {
+        return; // Successfully moved to Recycle Bin
+    }
+#endif
+
+    // If not on Windows or Recycle Bin move failed, delete permanently
+    if (!QFile::remove(filePath)) {
+        QMessageBox::warning(this, "Error", "Failed to delete the file.");
     }
 }
 
