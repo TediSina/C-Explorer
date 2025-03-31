@@ -3,6 +3,7 @@
 #ifdef Q_OS_WIN
 #include <windows.h>
 #include <shlobj.h>
+#include <shellapi.h>
 #endif
 
 #include <QTreeView>
@@ -229,5 +230,22 @@ void CExplorer::deleteFolder() {
 }
 
 void CExplorer::showDriveProperties() {
+    if (!selectedIndex.isValid()) return;
 
+    QString drivePath = model->filePath(selectedIndex);
+
+#ifdef Q_OS_WIN
+    SHELLEXECUTEINFOW sei = {};
+    sei.cbSize = sizeof(SHELLEXECUTEINFOW);
+    sei.fMask = SEE_MASK_INVOKEIDLIST;
+    sei.lpVerb = L"properties"; // Open properties window
+    sei.lpFile = reinterpret_cast<LPCWSTR>(drivePath.utf16()); // Convert QString to LPCWSTR
+    sei.nShow = SW_SHOWNORMAL;
+
+    if (!ShellExecuteExW(&sei)) {
+        QMessageBox::warning(this, "Error", "Failed to open properties.");
+    }
+#else
+    QMessageBox::information(this, "Unsupported", "Drive properties are only supported on Windows.");
+#endif
 }
