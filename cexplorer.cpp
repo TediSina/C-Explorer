@@ -63,10 +63,12 @@ void CExplorer::showContextMenu(const QPoint &pos) {
         QAction *renameAction = contextMenu.addAction("Rename");
         QAction *deleteAction = contextMenu.addAction("Delete");
         QAction *copyAction = contextMenu.addAction("Copy");
+        QAction *createFileAction = contextMenu.addAction("Create New File");
 
         connect(renameAction, &QAction::triggered, this, &CExplorer::renameFile);
         connect(deleteAction, &QAction::triggered, this, &CExplorer::deleteFile);
         connect(copyAction, &QAction::triggered, this, &CExplorer::copyFile);
+        connect(createFileAction, &QAction::triggered, this, &CExplorer::createFile);
     }
     else if (fileInfo.isDir() && !filePath.endsWith(":/")) {
         // Folder Context Menu (excluding drives)
@@ -74,15 +76,19 @@ void CExplorer::showContextMenu(const QPoint &pos) {
         QAction *deleteAction = contextMenu.addAction("Delete");
         QAction *copyAction = contextMenu.addAction("Copy");
         QAction *copyPathAction = contextMenu.addAction("Copy Folder Path");
+        QAction *createFileAction = contextMenu.addAction("Create New File");
 
         connect(renameAction, &QAction::triggered, this, &CExplorer::renameFolder);
         connect(deleteAction, &QAction::triggered, this, &CExplorer::deleteFolder);
         connect(copyAction, &QAction::triggered, this, &CExplorer::copyFolder);
         connect(copyPathAction, &QAction::triggered, this, &CExplorer::copyFolderPath);
+        connect(createFileAction, &QAction::triggered, this, &CExplorer::createFile);
     }
     else {
-        // Drive Context Menu (Show Properties)
+        // Drive Context Menu
+        QAction *createFileAction = contextMenu.addAction("Create New File");
         QAction *propertiesAction = contextMenu.addAction("Properties");
+        connect(createFileAction, &QAction::triggered, this, &CExplorer::createFile);
         connect(propertiesAction, &QAction::triggered, this, &CExplorer::showDriveProperties);
     }
 
@@ -231,6 +237,61 @@ void CExplorer::deleteFolder() {
         QMessageBox::information(this, "Deleted", "Folder deleted successfully.");
     } else {
         QMessageBox::warning(this, "Error", "Failed to delete folder.");
+    }
+}
+
+void CExplorer::createFile() {
+    if (!selectedIndex.isValid()) return;
+
+    QString dirPath = model->filePath(selectedIndex);
+    QFileInfo info(dirPath);
+
+    // If right-clicked on a file, use its parent directory
+    if (info.isFile()) {
+        dirPath = info.absolutePath();
+    } else if (!info.isDir()) {
+        QMessageBox::warning(this, "Error", "Cannot create file here.");
+        return;
+    }
+
+    QDir dir(dirPath);
+
+    // Ask the user for a file name (default is "NewFile.txt")
+    bool ok;
+    QString fileName = QInputDialog::getText(this, "Create File", "Enter file name:",
+                                             QLineEdit::Normal, "NewFile.txt", &ok);
+    if (!ok || fileName.isEmpty()) return;
+
+    // Static forbidden characters regex: \ / : * ? " < > |
+    static const QRegularExpression forbiddenChars(R"([\\/:*?"<>|])");
+
+    if (fileName.contains(forbiddenChars)) {
+        QMessageBox::warning(this, "Invalid Name", "The filename contains forbidden characters: \\ / : * ? \" < > |");
+        return;
+    }
+
+    QString filePath = dir.filePath(fileName);
+
+    // Ensure unique filename by adding `_1`, `_2`, etc. before the extension if needed
+    int counter = 1;
+    QString baseName = QFileInfo(fileName).completeBaseName(); // Name without extension
+    QString extension = QFileInfo(fileName).suffix(); // File extension
+
+    while (QFile::exists(filePath)) {
+        if (!extension.isEmpty()) {
+            filePath = dir.filePath(QString("%1_%2.%3").arg(baseName).arg(counter++).arg(extension));
+        } else {
+            filePath = dir.filePath(QString("%1_%2").arg(baseName).arg(counter++));
+        }
+    }
+
+    // Create the file
+    QFile file(filePath);
+    if (file.open(QIODevice::WriteOnly)) {
+        file.close();
+        QMessageBox::information(this, "Success", "File created successfully:\n" + filePath);
+    } else {
+        QMessageBox::warning(this, "Error", "Failed to create the file.");
     }
 }
 

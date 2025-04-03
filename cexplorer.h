@@ -20,6 +20,7 @@ private slots:
     void deleteFolder();
     void copyFolder();
     void copyFolderPath();
+    void createFile();
     void showDriveProperties();
 
 private:
