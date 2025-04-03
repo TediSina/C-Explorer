@@ -65,12 +65,14 @@ void CExplorer::showContextMenu(const QPoint &pos) {
         QAction *copyAction = contextMenu.addAction("Copy");
         QAction *copyPathAction = contextMenu.addAction("Copy File Path");
         QAction *createFileAction = contextMenu.addAction("Create New File");
+        QAction *propertiesAction = contextMenu.addAction("Properties");
 
         connect(renameAction, &QAction::triggered, this, &CExplorer::renameFile);
         connect(deleteAction, &QAction::triggered, this, &CExplorer::deleteFile);
         connect(copyAction, &QAction::triggered, this, &CExplorer::copyFile);
         connect(copyPathAction, &QAction::triggered, this, &CExplorer::copyPath);
         connect(createFileAction, &QAction::triggered, this, &CExplorer::createFile);
+        connect(propertiesAction, &QAction::triggered, this, &CExplorer::showProperties);
     }
     else if (fileInfo.isDir() && !filePath.endsWith(":/")) {
         // Folder Context Menu (excluding drives)
@@ -79,12 +81,14 @@ void CExplorer::showContextMenu(const QPoint &pos) {
         QAction *copyAction = contextMenu.addAction("Copy");
         QAction *copyPathAction = contextMenu.addAction("Copy Folder Path");
         QAction *createFileAction = contextMenu.addAction("Create New File");
+        QAction *propertiesAction = contextMenu.addAction("Properties");
 
         connect(renameAction, &QAction::triggered, this, &CExplorer::renameFolder);
         connect(deleteAction, &QAction::triggered, this, &CExplorer::deleteFolder);
         connect(copyAction, &QAction::triggered, this, &CExplorer::copyFolder);
         connect(copyPathAction, &QAction::triggered, this, &CExplorer::copyPath);
         connect(createFileAction, &QAction::triggered, this, &CExplorer::createFile);
+        connect(propertiesAction, &QAction::triggered, this, &CExplorer::showProperties);
     }
     else {
         // Drive Context Menu
@@ -93,7 +97,7 @@ void CExplorer::showContextMenu(const QPoint &pos) {
         QAction *propertiesAction = contextMenu.addAction("Properties");
         connect(copyPathAction, &QAction::triggered, this, &CExplorer::copyPath);
         connect(createFileAction, &QAction::triggered, this, &CExplorer::createFile);
-        connect(propertiesAction, &QAction::triggered, this, &CExplorer::showDriveProperties);
+        connect(propertiesAction, &QAction::triggered, this, &CExplorer::showProperties);
     }
 
     contextMenu.exec(treeView->viewport()->mapToGlobal(pos));
@@ -195,7 +199,6 @@ void CExplorer::copyPath() {
     if (!selectedIndex.isValid()) return;
 
     QString path = model->filePath(selectedIndex);
-    QFileInfo fileInfo(path);
 
     QClipboard *clipboard = QApplication::clipboard();
     clipboard->setText(path);
@@ -297,23 +300,23 @@ void CExplorer::createFile() {
     }
 }
 
-void CExplorer::showDriveProperties() {
+void CExplorer::showProperties() {
     if (!selectedIndex.isValid()) return;
 
-    QString drivePath = model->filePath(selectedIndex);
+    QString path = model->filePath(selectedIndex);
 
 #ifdef Q_OS_WIN
     SHELLEXECUTEINFOW sei = {};
     sei.cbSize = sizeof(SHELLEXECUTEINFOW);
     sei.fMask = SEE_MASK_INVOKEIDLIST;
     sei.lpVerb = L"properties"; // Open properties window
-    sei.lpFile = reinterpret_cast<LPCWSTR>(drivePath.utf16()); // Convert QString to LPCWSTR
+    sei.lpFile = reinterpret_cast<LPCWSTR>(path.utf16()); // Convert QString to LPCWSTR
     sei.nShow = SW_SHOWNORMAL;
 
     if (!ShellExecuteExW(&sei)) {
         QMessageBox::warning(this, "Error", "Failed to open properties.");
     }
 #else
-    QMessageBox::information(this, "Unsupported", "Drive properties are only supported on Windows.");
+    QMessageBox::information(this, "Unsupported", "Properties are only supported on Windows.");
 #endif
 }

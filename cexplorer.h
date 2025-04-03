@@ -21,7 +21,7 @@ private slots:
     void copyFolder();
     void copyPath();
     void createFile();
-    void showDriveProperties();
+    void showProperties();
 
 private:
     QFileSystemModel *model;
