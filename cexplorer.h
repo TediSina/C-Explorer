@@ -19,7 +19,7 @@ private slots:
     void renameFolder();
     void deleteFolder();
     void copyFolder();
-    void copyFolderPath();
+    void copyPath();
     void createFile();
     void showDriveProperties();
 

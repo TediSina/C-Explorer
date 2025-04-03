@@ -63,11 +63,13 @@ void CExplorer::showContextMenu(const QPoint &pos) {
         QAction *renameAction = contextMenu.addAction("Rename");
         QAction *deleteAction = contextMenu.addAction("Delete");
         QAction *copyAction = contextMenu.addAction("Copy");
+        QAction *copyPathAction = contextMenu.addAction("Copy File Path");
         QAction *createFileAction = contextMenu.addAction("Create New File");
 
         connect(renameAction, &QAction::triggered, this, &CExplorer::renameFile);
         connect(deleteAction, &QAction::triggered, this, &CExplorer::deleteFile);
         connect(copyAction, &QAction::triggered, this, &CExplorer::copyFile);
+        connect(copyPathAction, &QAction::triggered, this, &CExplorer::copyPath);
         connect(createFileAction, &QAction::triggered, this, &CExplorer::createFile);
     }
     else if (fileInfo.isDir() && !filePath.endsWith(":/")) {
@@ -81,13 +83,15 @@ void CExplorer::showContextMenu(const QPoint &pos) {
         connect(renameAction, &QAction::triggered, this, &CExplorer::renameFolder);
         connect(deleteAction, &QAction::triggered, this, &CExplorer::deleteFolder);
         connect(copyAction, &QAction::triggered, this, &CExplorer::copyFolder);
-        connect(copyPathAction, &QAction::triggered, this, &CExplorer::copyFolderPath);
+        connect(copyPathAction, &QAction::triggered, this, &CExplorer::copyPath);
         connect(createFileAction, &QAction::triggered, this, &CExplorer::createFile);
     }
     else {
         // Drive Context Menu
+        QAction *copyPathAction = contextMenu.addAction("Copy Drive Path");
         QAction *createFileAction = contextMenu.addAction("Create New File");
         QAction *propertiesAction = contextMenu.addAction("Properties");
+        connect(copyPathAction, &QAction::triggered, this, &CExplorer::copyPath);
         connect(createFileAction, &QAction::triggered, this, &CExplorer::createFile);
         connect(propertiesAction, &QAction::triggered, this, &CExplorer::showDriveProperties);
     }
@@ -187,18 +191,16 @@ void CExplorer::copyFolder() {
 
 }
 
-void CExplorer::copyFolderPath() {
+void CExplorer::copyPath() {
     if (!selectedIndex.isValid()) return;
 
-    QString folderPath = model->filePath(selectedIndex);
-    QFileInfo folderInfo(folderPath);
-
-    if (!folderInfo.isDir()) return;
+    QString path = model->filePath(selectedIndex);
+    QFileInfo fileInfo(path);
 
     QClipboard *clipboard = QApplication::clipboard();
-    clipboard->setText(folderPath);
+    clipboard->setText(path);
 
-    QMessageBox::information(this, "Copied", "Folder path copied to clipboard.");
+    QMessageBox::information(this, "Copied", "Path copied to clipboard:\n" + path);
 }
 
 void CExplorer::deleteFolder() {
