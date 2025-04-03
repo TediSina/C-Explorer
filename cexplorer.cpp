@@ -65,6 +65,7 @@ void CExplorer::showContextMenu(const QPoint &pos) {
         QAction *copyAction = contextMenu.addAction("Copy");
         QAction *copyPathAction = contextMenu.addAction("Copy File Path");
         QAction *createFileAction = contextMenu.addAction("Create New File");
+        QAction *createFolderAction = contextMenu.addAction("Create New Folder");
         QAction *propertiesAction = contextMenu.addAction("Properties");
 
         connect(renameAction, &QAction::triggered, this, &CExplorer::renameFile);
@@ -72,6 +73,7 @@ void CExplorer::showContextMenu(const QPoint &pos) {
         connect(copyAction, &QAction::triggered, this, &CExplorer::copyFile);
         connect(copyPathAction, &QAction::triggered, this, &CExplorer::copyPath);
         connect(createFileAction, &QAction::triggered, this, &CExplorer::createFile);
+        connect(createFolderAction, &QAction::triggered, this, &CExplorer::createFolder);
         connect(propertiesAction, &QAction::triggered, this, &CExplorer::showProperties);
     }
     else if (fileInfo.isDir() && !filePath.endsWith(":/")) {
@@ -81,6 +83,7 @@ void CExplorer::showContextMenu(const QPoint &pos) {
         QAction *copyAction = contextMenu.addAction("Copy");
         QAction *copyPathAction = contextMenu.addAction("Copy Folder Path");
         QAction *createFileAction = contextMenu.addAction("Create New File");
+        QAction *createFolderAction = contextMenu.addAction("Create New Folder");
         QAction *propertiesAction = contextMenu.addAction("Properties");
 
         connect(renameAction, &QAction::triggered, this, &CExplorer::renameFolder);
@@ -88,15 +91,18 @@ void CExplorer::showContextMenu(const QPoint &pos) {
         connect(copyAction, &QAction::triggered, this, &CExplorer::copyFolder);
         connect(copyPathAction, &QAction::triggered, this, &CExplorer::copyPath);
         connect(createFileAction, &QAction::triggered, this, &CExplorer::createFile);
+        connect(createFolderAction, &QAction::triggered, this, &CExplorer::createFolder);
         connect(propertiesAction, &QAction::triggered, this, &CExplorer::showProperties);
     }
     else {
         // Drive Context Menu
         QAction *copyPathAction = contextMenu.addAction("Copy Drive Path");
         QAction *createFileAction = contextMenu.addAction("Create New File");
+        QAction *createFolderAction = contextMenu.addAction("Create New Folder");
         QAction *propertiesAction = contextMenu.addAction("Properties");
         connect(copyPathAction, &QAction::triggered, this, &CExplorer::copyPath);
         connect(createFileAction, &QAction::triggered, this, &CExplorer::createFile);
+        connect(createFolderAction, &QAction::triggered, this, &CExplorer::createFolder);
         connect(propertiesAction, &QAction::triggered, this, &CExplorer::showProperties);
     }
 
@@ -297,6 +303,52 @@ void CExplorer::createFile() {
         QMessageBox::information(this, "Success", "File created successfully:\n" + filePath);
     } else {
         QMessageBox::warning(this, "Error", "Failed to create the file.");
+    }
+}
+
+void CExplorer::createFolder() {
+    if (!selectedIndex.isValid()) return;
+
+    QString dirPath = model->filePath(selectedIndex);
+    QFileInfo info(dirPath);
+
+    // If it's a file, get the parent directory
+    if (info.isFile()) {
+        dirPath = info.absolutePath();
+    } else if (!info.isDir()) {
+        QMessageBox::warning(this, "Error", "Cannot create folder here.");
+        return;
+    }
+
+    QDir dir(dirPath);
+
+    // Ask the user for a folder name (default is "NewFolder")
+    bool ok;
+    QString folderName = QInputDialog::getText(this, "Create Folder", "Enter folder name:",
+                                               QLineEdit::Normal, "NewFolder", &ok);
+    if (!ok || folderName.isEmpty()) return;
+
+    // Static forbidden characters regex for folder names
+    static const QRegularExpression forbiddenChars(R"([\\/:*?"<>|])");
+
+    if (folderName.contains(forbiddenChars)) {
+        QMessageBox::warning(this, "Invalid Name", "The folder name contains forbidden characters: \\ / : * ? \" < > |");
+        return;
+    }
+
+    QString folderPath = dir.filePath(folderName);
+
+    // Ensure unique folder name by adding `_1`, `_2`, etc.
+    int counter = 1;
+    while (dir.exists(folderPath)) {
+        folderPath = dir.filePath(QString("%1_%2").arg(folderName).arg(counter++));
+    }
+
+    // Create the folder
+    if (dir.mkdir(folderPath)) {
+        QMessageBox::information(this, "Success", "Folder created successfully:\n" + folderPath);
+    } else {
+        QMessageBox::warning(this, "Error", "Failed to create the folder.");
     }
 }
 

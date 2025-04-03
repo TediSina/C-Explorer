@@ -21,6 +21,7 @@ private slots:
     void copyFolder();
     void copyPath();
     void createFile();
+    void createFolder();
     void showProperties();
 
 private:
