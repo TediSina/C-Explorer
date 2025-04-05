@@ -256,15 +256,31 @@ void CExplorer::paste() {
             continue;
         }
 
-        QString targetPath = destinationDirPath + QDir::separator() + sourceInfo.fileName();
+        QString originalName = sourceInfo.fileName();
+        QString targetPath = destinationDirPath + QDir::separator() + originalName;
 
-        QString baseName = sourceInfo.completeBaseName();
-        QString extension = sourceInfo.suffix();
+        QString baseName;
+        QString extension;
+        bool isFile = sourceInfo.isFile();
         int counter = 1;
+
+        // Separate base name and extension if it's a file
+        if (isFile) {
+            baseName = sourceInfo.completeBaseName();
+            extension = sourceInfo.suffix();
+        }
+
+        // Generate unique name
         while (QFile::exists(targetPath)) {
-            targetPath = destinationDirPath + QDir::separator() +
-                         QString("%1_%2%3").arg(baseName).arg(counter++)
-                             .arg(extension.isEmpty() ? "" : "." + extension);
+            QString newName;
+            if (isFile) {
+                newName = QString("%1_%2%3").arg(baseName).arg(counter++)
+                .arg(extension.isEmpty() ? "" : "." + extension);
+            } else {
+                newName = QString("%1_%2").arg(originalName).arg(counter++);
+            }
+
+            targetPath = destinationDirPath + QDir::separator() + newName;
         }
 
         bool success = false;
