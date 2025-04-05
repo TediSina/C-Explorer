@@ -71,7 +71,7 @@ void CExplorer::showContextMenu(const QPoint &pos) {
         QAction *propertiesAction = contextMenu.addAction("Properties");
 
         connect(renameAction, &QAction::triggered, this, &CExplorer::renameFile);
-        connect(deleteAction, &QAction::triggered, this, &CExplorer::deleteFile);
+        connect(deleteAction, &QAction::triggered, this, &CExplorer::deleteItems);
         connect(copyAction, &QAction::triggered, this, &CExplorer::copy);
         connect(copyPathAction, &QAction::triggered, this, &CExplorer::copyPath);
         connect(createFileAction, &QAction::triggered, this, &CExplorer::createFile);
@@ -91,7 +91,7 @@ void CExplorer::showContextMenu(const QPoint &pos) {
         QAction *propertiesAction = contextMenu.addAction("Properties");
 
         connect(renameAction, &QAction::triggered, this, &CExplorer::renameFolder);
-        connect(deleteAction, &QAction::triggered, this, &CExplorer::deleteFolder);
+        connect(deleteAction, &QAction::triggered, this, &CExplorer::deleteItems);
         connect(copyAction, &QAction::triggered, this, &CExplorer::copy);
         connect(copyPathAction, &QAction::triggered, this, &CExplorer::copyPath);
         connect(createFileAction, &QAction::triggered, this, &CExplorer::createFile);
@@ -125,39 +125,6 @@ void CExplorer::renameFile() {
     if (!newName.isEmpty()) {
         QString newPath = QFileInfo(oldName).absolutePath() + "/" + newName;
         QFile::rename(oldName, newPath);
-    }
-}
-
-void CExplorer::deleteFile() {
-    if (!selectedIndex.isValid()) return;
-
-    QString filePath = model->filePath(selectedIndex);
-
-    // Confirm deletion
-    if (QMessageBox::warning(this, "Delete", "Are you sure you want to delete this file?",
-                             QMessageBox::Yes | QMessageBox::No) == QMessageBox::No) {
-        return;
-    }
-
-#ifdef Q_OS_WIN
-    // Convert file path to wchar_t for SHFileOperation
-    std::wstring wFilePath = filePath.toStdWString() + L'\0'; // Needs double null termination
-
-    SHFILEOPSTRUCTW fileOp;
-    ZeroMemory(&fileOp, sizeof(fileOp));
-    fileOp.wFunc = FO_DELETE;
-    fileOp.pFrom = wFilePath.c_str();
-    fileOp.fFlags = FOF_ALLOWUNDO | FOF_NOCONFIRMATION;  // Send to Recycle Bin
-
-    // Try moving to Recycle Bin
-    if (SHFileOperationW(&fileOp) == 0) {
-        return; // Successfully moved to Recycle Bin
-    }
-#endif
-
-    // If not on Windows or Recycle Bin move failed, delete permanently
-    if (!QFile::remove(filePath)) {
-        QMessageBox::warning(this, "Error", "Failed to delete the file.");
     }
 }
 
@@ -298,6 +265,51 @@ void CExplorer::paste() {
     QMessageBox::information(this, "Paste", "Paste operation completed.");
 }
 
+void CExplorer::deleteItems() {
+    const auto selectedIndexes = treeView->selectionModel()->selectedRows();
+
+    if (selectedIndexes.isEmpty()) return;
+
+    QMessageBox::StandardButton confirm = QMessageBox::warning(
+        this, "Delete",
+        QString("Are you sure you want to delete the selected %1item%2?\nThis action cannot be undone.")
+            .arg(selectedIndexes.count() == 1 ? "" : QString::number(selectedIndexes.count()) + " ",
+                    selectedIndexes.count() > 1 ? "s" : ""),
+        QMessageBox::Yes | QMessageBox::No
+        );
+
+    if (confirm != QMessageBox::Yes) return;
+
+    for (const QModelIndex &index : std::as_const(selectedIndexes)) {
+        QString path = model->filePath(index);
+        QFileInfo fileInfo(path);
+
+#ifdef Q_OS_WIN
+        QString pathWithNull = QDir::toNativeSeparators(path) + '\0';
+
+        SHFILEOPSTRUCT fileOp = {};
+        fileOp.wFunc = FO_DELETE;
+        fileOp.pFrom = reinterpret_cast<LPCWSTR>(pathWithNull.utf16());
+        fileOp.fFlags = FOF_ALLOWUNDO | FOF_NOCONFIRMATION | FOF_SILENT;
+
+        if (SHFileOperation(&fileOp) == 0) {
+            continue; // Successfully moved to Recycle Bin
+        }
+#endif
+
+        if (fileInfo.isDir()) {
+            QDir dir(path);
+            if (!dir.removeRecursively()) {
+                QMessageBox::warning(this, "Error", "Failed to delete folder:\n" + path);
+            }
+        } else {
+            if (!QFile::remove(path)) {
+                QMessageBox::warning(this, "Error", "Failed to delete file:\n" + path);
+            }
+        }
+    }
+}
+
 void CExplorer::renameFolder() {
     if (!selectedIndex.isValid()) return;
 
@@ -332,45 +344,6 @@ void CExplorer::copyPath() {
     clipboard->setText(path);
 
     QMessageBox::information(this, "Copied", "Path copied to clipboard:\n" + path);
-}
-
-void CExplorer::deleteFolder() {
-    if (!selectedIndex.isValid()) return;
-
-    QString folderPath = model->filePath(selectedIndex);
-    QFileInfo folderInfo(folderPath);
-
-    if (!folderInfo.isDir()) return; // Ensure it's a folder
-
-    // Confirm deletion
-    QMessageBox::StandardButton confirm = QMessageBox::warning(
-        this, "Delete Folder",
-        "Are you sure you want to delete this folder?\nThis action cannot be undone.",
-        QMessageBox::Yes | QMessageBox::No);
-
-    if (confirm != QMessageBox::Yes) return;
-
-#ifdef Q_OS_WIN
-    // Attempt to move folder to Recycle Bin (Windows)
-    QString pathWithNull = QDir::toNativeSeparators(folderPath) + '\0';
-
-    SHFILEOPSTRUCT fileOp = {};
-    fileOp.wFunc = FO_DELETE;
-    fileOp.pFrom = reinterpret_cast<LPCWSTR>(pathWithNull.utf16());
-    fileOp.fFlags = FOF_ALLOWUNDO | FOF_NOCONFIRMATION | FOF_SILENT;
-
-    if (SHFileOperation(&fileOp) == 0) {
-        return; // Successfully moved to Recycle Bin
-    }
-#endif
-
-    // If Recycle Bin move fails or not on Windows, delete permanently
-    QDir dir(folderPath);
-    if (dir.removeRecursively()) {
-        QMessageBox::information(this, "Deleted", "Folder deleted successfully.");
-    } else {
-        QMessageBox::warning(this, "Error", "Failed to delete folder.");
-    }
 }
 
 void CExplorer::createFile() {
