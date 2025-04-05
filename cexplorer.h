@@ -16,6 +16,8 @@ private slots:
     void renameFile();
     void deleteFile();
     void copyFile();
+    bool copyFolderRecursively(const QString &sourceFolder, const QString &destinationFolder);
+    void paste();
     void renameFolder();
     void deleteFolder();
     void copyFolder();

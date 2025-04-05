@@ -63,6 +63,7 @@ void CExplorer::showContextMenu(const QPoint &pos) {
         QAction *renameAction = contextMenu.addAction("Rename");
         QAction *deleteAction = contextMenu.addAction("Delete");
         QAction *copyAction = contextMenu.addAction("Copy");
+        QAction *pasteAction = contextMenu.addAction("Paste");
         QAction *copyPathAction = contextMenu.addAction("Copy File Path");
         QAction *createFileAction = contextMenu.addAction("Create New File");
         QAction *createFolderAction = contextMenu.addAction("Create New Folder");
@@ -73,6 +74,7 @@ void CExplorer::showContextMenu(const QPoint &pos) {
         connect(copyAction, &QAction::triggered, this, &CExplorer::copyFile);
         connect(copyPathAction, &QAction::triggered, this, &CExplorer::copyPath);
         connect(createFileAction, &QAction::triggered, this, &CExplorer::createFile);
+        connect(pasteAction, &QAction::triggered, this, &CExplorer::paste);
         connect(createFolderAction, &QAction::triggered, this, &CExplorer::createFolder);
         connect(propertiesAction, &QAction::triggered, this, &CExplorer::showProperties);
     }
@@ -81,6 +83,7 @@ void CExplorer::showContextMenu(const QPoint &pos) {
         QAction *renameAction = contextMenu.addAction("Rename");
         QAction *deleteAction = contextMenu.addAction("Delete");
         QAction *copyAction = contextMenu.addAction("Copy");
+        QAction *pasteAction = contextMenu.addAction("Paste");
         QAction *copyPathAction = contextMenu.addAction("Copy Folder Path");
         QAction *createFileAction = contextMenu.addAction("Create New File");
         QAction *createFolderAction = contextMenu.addAction("Create New Folder");
@@ -91,16 +94,19 @@ void CExplorer::showContextMenu(const QPoint &pos) {
         connect(copyAction, &QAction::triggered, this, &CExplorer::copyFolder);
         connect(copyPathAction, &QAction::triggered, this, &CExplorer::copyPath);
         connect(createFileAction, &QAction::triggered, this, &CExplorer::createFile);
+        connect(pasteAction, &QAction::triggered, this, &CExplorer::paste);
         connect(createFolderAction, &QAction::triggered, this, &CExplorer::createFolder);
         connect(propertiesAction, &QAction::triggered, this, &CExplorer::showProperties);
     }
     else {
         // Drive Context Menu
         QAction *copyPathAction = contextMenu.addAction("Copy Drive Path");
+        QAction *pasteAction = contextMenu.addAction("Paste");
         QAction *createFileAction = contextMenu.addAction("Create New File");
         QAction *createFolderAction = contextMenu.addAction("Create New Folder");
         QAction *propertiesAction = contextMenu.addAction("Properties");
         connect(copyPathAction, &QAction::triggered, this, &CExplorer::copyPath);
+        connect(pasteAction, &QAction::triggered, this, &CExplorer::paste);
         connect(createFileAction, &QAction::triggered, this, &CExplorer::createFile);
         connect(createFolderAction, &QAction::triggered, this, &CExplorer::createFolder);
         connect(propertiesAction, &QAction::triggered, this, &CExplorer::showProperties);
@@ -172,6 +178,93 @@ void CExplorer::copyFile() {
     QMessageBox::information(this, "Copy", "File copied to clipboard!");
 }
 
+bool CExplorer::copyFolderRecursively(const QString &sourceFolder, const QString &destinationFolder) {
+    QDir sourceDir(sourceFolder);
+    if (!sourceDir.exists())
+        return false;
+
+    QDir destDir(destinationFolder);
+    if (!destDir.exists()) {
+        if (!destDir.mkpath(".")) return false;
+    }
+
+    QFileInfoList entries = sourceDir.entryInfoList(QDir::NoDotAndDotDot | QDir::AllEntries);
+    for (const QFileInfo &entry : entries) {
+        QString srcPath = entry.absoluteFilePath();
+        QString destPath = destinationFolder + QDir::separator() + entry.fileName();
+
+        if (entry.isDir()) {
+            if (!copyFolderRecursively(srcPath, destPath))
+                return false;
+        } else {
+            if (!QFile::copy(srcPath, destPath))
+                return false;
+        }
+    }
+    return true;
+}
+
+void CExplorer::paste() {
+    if (!selectedIndex.isValid()) return;
+
+    QString destinationDirPath;
+    QFileInfo selectedInfo(model->filePath(selectedIndex));
+
+    if (selectedInfo.isDir()) {
+        destinationDirPath = selectedInfo.absoluteFilePath();
+    } else {
+        destinationDirPath = selectedInfo.absolutePath();
+    }
+
+    const QClipboard *clipboard = QGuiApplication::clipboard();
+    const QMimeData *mimeData = clipboard->mimeData();
+
+    if (!mimeData->hasUrls()) {
+        QMessageBox::warning(this, "Paste", "Clipboard does not contain any valid files or folders.");
+        return;
+    }
+
+    QList<QUrl> urls = mimeData->urls();
+    if (urls.isEmpty()) {
+        QMessageBox::warning(this, "Paste", "No items found in clipboard.");
+        return;
+    }
+
+    for (const QUrl &url : urls) {
+        QString sourcePath = url.toLocalFile();
+        QFileInfo sourceInfo(sourcePath);
+
+        if (!sourceInfo.exists()) {
+            QMessageBox::warning(this, "Paste", "Source item does not exist:\n" + sourcePath);
+            continue;
+        }
+
+        QString targetPath = destinationDirPath + QDir::separator() + sourceInfo.fileName();
+
+        QString baseName = sourceInfo.completeBaseName();
+        QString extension = sourceInfo.suffix();
+        int counter = 1;
+        while (QFile::exists(targetPath)) {
+            targetPath = destinationDirPath + QDir::separator() +
+                         QString("%1_%2%3").arg(baseName).arg(counter++)
+                             .arg(extension.isEmpty() ? "" : "." + extension);
+        }
+
+        bool success = false;
+        if (sourceInfo.isFile()) {
+            success = QFile::copy(sourcePath, targetPath);
+        } else if (sourceInfo.isDir()) {
+            success = copyFolderRecursively(sourcePath, targetPath);
+        }
+
+        if (!success) {
+            QMessageBox::warning(this, "Paste", "Failed to paste:\n" + sourcePath);
+        }
+    }
+
+    QMessageBox::information(this, "Paste", "Paste operation completed.");
+}
+
 void CExplorer::renameFolder() {
     if (!selectedIndex.isValid()) return;
 
@@ -198,7 +291,26 @@ void CExplorer::renameFolder() {
 }
 
 void CExplorer::copyFolder() {
+    if (!selectedIndex.isValid()) return;
 
+    QString folderPath = model->filePath(selectedIndex);
+    QFileInfo folderInfo(folderPath);
+
+    if (!folderInfo.exists() || !folderInfo.isDir()) {
+        QMessageBox::warning(this, "Copy", "Selected item is not a valid folder.");
+        return;
+    }
+
+    QClipboard *clipboard = QGuiApplication::clipboard();
+    QMimeData *mimeData = new QMimeData();
+
+    QList<QUrl> urls;
+    urls.append(QUrl::fromLocalFile(folderPath));
+    mimeData->setUrls(urls);
+
+    clipboard->setMimeData(mimeData);
+
+    QMessageBox::information(this, "Copy", "Folder copied to clipboard!");
 }
 
 void CExplorer::copyPath() {
