@@ -189,7 +189,7 @@ bool CExplorer::copyFolderRecursively(const QString &sourceFolder, const QString
     }
 
     QFileInfoList entries = sourceDir.entryInfoList(QDir::NoDotAndDotDot | QDir::AllEntries);
-    for (const QFileInfo &entry : entries) {
+    for (const QFileInfo &entry : std::as_const(entries)) {
         QString srcPath = entry.absoluteFilePath();
         QString destPath = destinationFolder + QDir::separator() + entry.fileName();
 
@@ -230,7 +230,7 @@ void CExplorer::paste() {
         return;
     }
 
-    for (const QUrl &url : urls) {
+    for (const QUrl &url : std::as_const(urls)) {
         QString sourcePath = url.toLocalFile();
         QFileInfo sourceInfo(sourcePath);
 
