@@ -71,7 +71,7 @@ void CExplorer::showContextMenu(const QPoint &pos) {
 
         connect(renameAction, &QAction::triggered, this, &CExplorer::renameFile);
         connect(deleteAction, &QAction::triggered, this, &CExplorer::deleteFile);
-        connect(copyAction, &QAction::triggered, this, &CExplorer::copyFile);
+        connect(copyAction, &QAction::triggered, this, &CExplorer::copy);
         connect(copyPathAction, &QAction::triggered, this, &CExplorer::copyPath);
         connect(createFileAction, &QAction::triggered, this, &CExplorer::createFile);
         connect(pasteAction, &QAction::triggered, this, &CExplorer::paste);
@@ -91,7 +91,7 @@ void CExplorer::showContextMenu(const QPoint &pos) {
 
         connect(renameAction, &QAction::triggered, this, &CExplorer::renameFolder);
         connect(deleteAction, &QAction::triggered, this, &CExplorer::deleteFolder);
-        connect(copyAction, &QAction::triggered, this, &CExplorer::copyFolder);
+        connect(copyAction, &QAction::triggered, this, &CExplorer::copy);
         connect(copyPathAction, &QAction::triggered, this, &CExplorer::copyPath);
         connect(createFileAction, &QAction::triggered, this, &CExplorer::createFile);
         connect(pasteAction, &QAction::triggered, this, &CExplorer::paste);
@@ -160,22 +160,38 @@ void CExplorer::deleteFile() {
     }
 }
 
-void CExplorer::copyFile() {
-    if (!selectedIndex.isValid()) return;
+void CExplorer::copy() {
+    // Get all selected indexes (to support multi-selection)
+    QModelIndexList selectedIndexes = treeView->selectionModel()->selectedIndexes();
 
-    QString filePath = model->filePath(selectedIndex);
+    if (selectedIndexes.isEmpty()) {
+        QMessageBox::warning(this, "Copy", "No files or folders selected to copy.");
+        return;
+    }
+
+    QList<QUrl> urls;
+    QSet<QString> addedPaths;  // Avoid duplicate entries (especially due to multiple columns)
+
+    for (const QModelIndex &index : std::as_const(selectedIndexes)) {
+        // Skip duplicate indexes from different columns
+        QString path = model->filePath(index);
+        if (addedPaths.contains(path)) continue;
+
+        addedPaths.insert(path);
+        urls.append(QUrl::fromLocalFile(path));
+    }
+
+    if (urls.isEmpty()) {
+        QMessageBox::warning(this, "Copy", "No valid file or folder paths found.");
+        return;
+    }
 
     QClipboard *clipboard = QGuiApplication::clipboard();
     QMimeData *mimeData = new QMimeData();
-
-    // Set file path in clipboard (for pasting)
-    QList<QUrl> urls;
-    urls.append(QUrl::fromLocalFile(filePath));
     mimeData->setUrls(urls);
-
     clipboard->setMimeData(mimeData);
 
-    QMessageBox::information(this, "Copy", "File copied to clipboard!");
+    QMessageBox::information(this, "Copy", "Copied to clipboard!");
 }
 
 bool CExplorer::copyFolderRecursively(const QString &sourceFolder, const QString &destinationFolder) {
@@ -288,29 +304,6 @@ void CExplorer::renameFolder() {
     } else {
         QMessageBox::warning(this, "Error", "Failed to rename folder.");
     }
-}
-
-void CExplorer::copyFolder() {
-    if (!selectedIndex.isValid()) return;
-
-    QString folderPath = model->filePath(selectedIndex);
-    QFileInfo folderInfo(folderPath);
-
-    if (!folderInfo.exists() || !folderInfo.isDir()) {
-        QMessageBox::warning(this, "Copy", "Selected item is not a valid folder.");
-        return;
-    }
-
-    QClipboard *clipboard = QGuiApplication::clipboard();
-    QMimeData *mimeData = new QMimeData();
-
-    QList<QUrl> urls;
-    urls.append(QUrl::fromLocalFile(folderPath));
-    mimeData->setUrls(urls);
-
-    clipboard->setMimeData(mimeData);
-
-    QMessageBox::information(this, "Copy", "Folder copied to clipboard!");
 }
 
 void CExplorer::copyPath() {

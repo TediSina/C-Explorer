@@ -15,12 +15,11 @@ private slots:
     void showContextMenu(const QPoint &pos);
     void renameFile();
     void deleteFile();
-    void copyFile();
+    void copy();
     bool copyFolderRecursively(const QString &sourceFolder, const QString &destinationFolder);
     void paste();
     void renameFolder();
     void deleteFolder();
-    void copyFolder();
     void copyPath();
     void createFile();
     void createFolder();
