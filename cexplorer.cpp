@@ -33,6 +33,7 @@ CExplorer::CExplorer() {
     treeView = new QTreeView(this);
     treeView->setModel(model);
     treeView->setRootIndex(QModelIndex());
+    treeView->setSelectionMode(QAbstractItemView::ExtendedSelection);
 
     connect(treeView, &QTreeView::doubleClicked, this, [this](const QModelIndex &index) {
         if (!model->isDir(index)) {
