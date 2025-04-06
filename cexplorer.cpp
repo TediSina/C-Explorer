@@ -63,6 +63,7 @@ void CExplorer::showContextMenu(const QPoint &pos) {
         // File Context Menu
         QAction *renameAction = contextMenu.addAction("Rename");
         QAction *deleteAction = contextMenu.addAction("Delete");
+        QAction *cutAction = contextMenu.addAction("Cut");
         QAction *copyAction = contextMenu.addAction("Copy");
         QAction *pasteAction = contextMenu.addAction("Paste");
         QAction *copyPathAction = contextMenu.addAction("Copy File Path");
@@ -72,6 +73,7 @@ void CExplorer::showContextMenu(const QPoint &pos) {
 
         connect(renameAction, &QAction::triggered, this, &CExplorer::renameFile);
         connect(deleteAction, &QAction::triggered, this, &CExplorer::deleteItems);
+        connect(cutAction, &QAction::triggered, this, &CExplorer::cut);
         connect(copyAction, &QAction::triggered, this, &CExplorer::copy);
         connect(copyPathAction, &QAction::triggered, this, &CExplorer::copyPath);
         connect(createFileAction, &QAction::triggered, this, &CExplorer::createFile);
@@ -83,6 +85,7 @@ void CExplorer::showContextMenu(const QPoint &pos) {
         // Folder Context Menu (excluding drives)
         QAction *renameAction = contextMenu.addAction("Rename");
         QAction *deleteAction = contextMenu.addAction("Delete");
+        QAction *cutAction = contextMenu.addAction("Cut");
         QAction *copyAction = contextMenu.addAction("Copy");
         QAction *pasteAction = contextMenu.addAction("Paste");
         QAction *copyPathAction = contextMenu.addAction("Copy Folder Path");
@@ -92,6 +95,7 @@ void CExplorer::showContextMenu(const QPoint &pos) {
 
         connect(renameAction, &QAction::triggered, this, &CExplorer::renameFolder);
         connect(deleteAction, &QAction::triggered, this, &CExplorer::deleteItems);
+        connect(cutAction, &QAction::triggered, this, &CExplorer::cut);
         connect(copyAction, &QAction::triggered, this, &CExplorer::copy);
         connect(copyPathAction, &QAction::triggered, this, &CExplorer::copyPath);
         connect(createFileAction, &QAction::triggered, this, &CExplorer::createFile);
@@ -160,6 +164,26 @@ void CExplorer::copy() {
     clipboard->setMimeData(mimeData);
 
     QMessageBox::information(this, "Copy", "Copied to clipboard!");
+}
+
+void CExplorer::cut() {
+    const auto selectedIndexes = treeView->selectionModel()->selectedRows();
+    if (selectedIndexes.isEmpty()) return;
+
+    cutPaths.clear();
+    QList<QUrl> urlList;
+
+    for (const QModelIndex &index : std::as_const(selectedIndexes)) {
+        QString path = model->filePath(index);
+        cutPaths << path;
+        urlList << QUrl::fromLocalFile(path);
+    }
+
+    QMimeData *mimeData = new QMimeData();
+    mimeData->setUrls(urlList);
+
+    QGuiApplication::clipboard()->setMimeData(mimeData);
+    isCutOperation = true;
 }
 
 bool CExplorer::copyFolderRecursively(const QString &sourceFolder, const QString &destinationFolder) {
@@ -251,16 +275,31 @@ void CExplorer::paste() {
         }
 
         bool success = false;
-        if (sourceInfo.isFile()) {
-            success = QFile::copy(sourcePath, targetPath);
-        } else if (sourceInfo.isDir()) {
-            success = copyFolderRecursively(sourcePath, targetPath);
+
+        // If cutting, move instead of copy
+        if (isCutOperation && cutPaths.contains(sourcePath)) {
+            if (sourceInfo.isFile()) {
+                success = QFile::rename(sourcePath, targetPath);
+            } else if (sourceInfo.isDir()) {
+                QDir sourceDir(sourcePath);
+                success = sourceDir.rename(sourcePath, targetPath);
+            }
+        } else {
+            if (sourceInfo.isFile()) {
+                success = QFile::copy(sourcePath, targetPath);
+            } else if (sourceInfo.isDir()) {
+                success = copyFolderRecursively(sourcePath, targetPath);
+            }
         }
 
         if (!success) {
             QMessageBox::warning(this, "Paste", "Failed to paste:\n" + sourcePath);
         }
     }
+
+    // Clear cut state
+    cutPaths.clear();
+    isCutOperation = false;
 
     QMessageBox::information(this, "Paste", "Paste operation completed.");
 }

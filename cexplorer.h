@@ -15,6 +15,7 @@ private slots:
     void showContextMenu(const QPoint &pos);
     void renameFile();
     void copy();
+    void cut();
     bool copyFolderRecursively(const QString &sourceFolder, const QString &destinationFolder);
     void paste();
     void deleteItems();
@@ -28,6 +29,8 @@ private:
     QFileSystemModel *model;
     QTreeView *treeView;
     QModelIndex selectedIndex;
+    QStringList cutPaths;
+    bool isCutOperation = false;
 };
 
 #endif // CEXPLORER_H
