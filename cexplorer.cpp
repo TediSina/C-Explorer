@@ -61,57 +61,57 @@ void CExplorer::showContextMenu(const QPoint &pos) {
 
     if (fileInfo.isFile()) {
         // File Context Menu
-        QAction *renameAction = contextMenu.addAction("Rename");
-        QAction *deleteAction = contextMenu.addAction("Delete");
         QAction *cutAction = contextMenu.addAction("Cut");
         QAction *copyAction = contextMenu.addAction("Copy");
+        QAction *deleteAction = contextMenu.addAction("Delete");
+        QAction *renameAction = contextMenu.addAction("Rename");
         QAction *pasteAction = contextMenu.addAction("Paste");
         QAction *copyPathAction = contextMenu.addAction("Copy File Path");
         QAction *createFileAction = contextMenu.addAction("Create New File");
         QAction *createFolderAction = contextMenu.addAction("Create New Folder");
         QAction *propertiesAction = contextMenu.addAction("Properties");
 
-        connect(renameAction, &QAction::triggered, this, &CExplorer::renameFile);
-        connect(deleteAction, &QAction::triggered, this, &CExplorer::deleteItems);
         connect(cutAction, &QAction::triggered, this, &CExplorer::cut);
         connect(copyAction, &QAction::triggered, this, &CExplorer::copy);
+        connect(deleteAction, &QAction::triggered, this, &CExplorer::deleteItems);
+        connect(renameAction, &QAction::triggered, this, &CExplorer::renameFile);
+        connect(pasteAction, &QAction::triggered, this, &CExplorer::paste);
         connect(copyPathAction, &QAction::triggered, this, &CExplorer::copyPath);
         connect(createFileAction, &QAction::triggered, this, &CExplorer::createFile);
-        connect(pasteAction, &QAction::triggered, this, &CExplorer::paste);
         connect(createFolderAction, &QAction::triggered, this, &CExplorer::createFolder);
         connect(propertiesAction, &QAction::triggered, this, &CExplorer::showProperties);
     }
     else if (fileInfo.isDir() && !filePath.endsWith(":/")) {
         // Folder Context Menu (excluding drives)
-        QAction *renameAction = contextMenu.addAction("Rename");
-        QAction *deleteAction = contextMenu.addAction("Delete");
         QAction *cutAction = contextMenu.addAction("Cut");
         QAction *copyAction = contextMenu.addAction("Copy");
+        QAction *deleteAction = contextMenu.addAction("Delete");
+        QAction *renameAction = contextMenu.addAction("Rename");
         QAction *pasteAction = contextMenu.addAction("Paste");
         QAction *copyPathAction = contextMenu.addAction("Copy Folder Path");
         QAction *createFileAction = contextMenu.addAction("Create New File");
         QAction *createFolderAction = contextMenu.addAction("Create New Folder");
         QAction *propertiesAction = contextMenu.addAction("Properties");
 
-        connect(renameAction, &QAction::triggered, this, &CExplorer::renameFolder);
-        connect(deleteAction, &QAction::triggered, this, &CExplorer::deleteItems);
         connect(cutAction, &QAction::triggered, this, &CExplorer::cut);
         connect(copyAction, &QAction::triggered, this, &CExplorer::copy);
+        connect(deleteAction, &QAction::triggered, this, &CExplorer::deleteItems);
+        connect(renameAction, &QAction::triggered, this, &CExplorer::renameFolder);
+        connect(pasteAction, &QAction::triggered, this, &CExplorer::paste);
         connect(copyPathAction, &QAction::triggered, this, &CExplorer::copyPath);
         connect(createFileAction, &QAction::triggered, this, &CExplorer::createFile);
-        connect(pasteAction, &QAction::triggered, this, &CExplorer::paste);
         connect(createFolderAction, &QAction::triggered, this, &CExplorer::createFolder);
         connect(propertiesAction, &QAction::triggered, this, &CExplorer::showProperties);
     }
     else {
         // Drive Context Menu
-        QAction *copyPathAction = contextMenu.addAction("Copy Drive Path");
         QAction *pasteAction = contextMenu.addAction("Paste");
+        QAction *copyPathAction = contextMenu.addAction("Copy Drive Path");
         QAction *createFileAction = contextMenu.addAction("Create New File");
         QAction *createFolderAction = contextMenu.addAction("Create New Folder");
         QAction *propertiesAction = contextMenu.addAction("Properties");
-        connect(copyPathAction, &QAction::triggered, this, &CExplorer::copyPath);
         connect(pasteAction, &QAction::triggered, this, &CExplorer::paste);
+        connect(copyPathAction, &QAction::triggered, this, &CExplorer::copyPath);
         connect(createFileAction, &QAction::triggered, this, &CExplorer::createFile);
         connect(createFolderAction, &QAction::triggered, this, &CExplorer::createFolder);
         connect(propertiesAction, &QAction::triggered, this, &CExplorer::showProperties);
