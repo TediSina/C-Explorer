@@ -253,6 +253,12 @@ void CExplorer::paste() {
         QString originalName = sourceInfo.fileName();
         QString targetPath = destinationDirPath + QDir::separator() + originalName;
 
+        // Skip cut-paste if source and target paths are identical
+        if (isCutOperation && cutPaths.contains(sourcePath) &&
+            sourceInfo.absoluteFilePath() == QFileInfo(targetPath).absoluteFilePath()) {
+            continue;
+        }
+
         QString baseName;
         QString extension;
         bool isFile = sourceInfo.isFile();
