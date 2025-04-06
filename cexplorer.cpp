@@ -1,4 +1,5 @@
 #include "cexplorer.h"
+#include "cfilesystemmodel.h"
 
 #ifdef Q_OS_WIN
 #include <windows.h>
@@ -7,7 +8,6 @@
 #endif
 
 #include <QTreeView>
-#include <QFileSystemModel>
 #include <QVBoxLayout>
 #include <QWidget>
 #include <QDesktopServices>
@@ -27,7 +27,7 @@ CExplorer::CExplorer() {
     QWidget *centralWidget = new QWidget(this);
     QVBoxLayout *layout = new QVBoxLayout(centralWidget);
 
-    model = new QFileSystemModel(this);
+    model = new CFileSystemModel(this);
     model->setRootPath("");
 
     treeView = new QTreeView(this);
@@ -184,6 +184,9 @@ void CExplorer::cut() {
 
     QGuiApplication::clipboard()->setMimeData(mimeData);
     isCutOperation = true;
+
+    // Set cut paths visually
+    static_cast<CFileSystemModel *>(model)->setCutPaths(cutPaths);
 }
 
 bool CExplorer::copyFolderRecursively(const QString &sourceFolder, const QString &destinationFolder) {
@@ -300,6 +303,7 @@ void CExplorer::paste() {
     // Clear cut state
     cutPaths.clear();
     isCutOperation = false;
+    static_cast<CFileSystemModel *>(model)->clearCutPaths(); // Clear grayed items
 
     QMessageBox::information(this, "Paste", "Paste operation completed.");
 }

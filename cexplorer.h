@@ -1,8 +1,9 @@
 #ifndef CEXPLORER_H
 #define CEXPLORER_H
 
+#include "cfilesystemmodel.h"
+
 #include <QMainWindow>
-#include <QFileSystemModel>
 #include <QTreeView>
 
 class CExplorer : public QMainWindow {
@@ -26,7 +27,7 @@ private slots:
     void showProperties();
 
 private:
-    QFileSystemModel *model;
+    CFileSystemModel *model;
     QTreeView *treeView;
     QModelIndex selectedIndex;
     QStringList cutPaths;
