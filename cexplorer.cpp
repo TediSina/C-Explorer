@@ -270,8 +270,36 @@ void CExplorer::paste() {
             extension = sourceInfo.suffix();
         }
 
-        // Generate unique name
-        while (QFile::exists(targetPath)) {
+        // Conflict resolution
+        bool renameInstead = false;
+        bool cancelThisItem = false;
+
+        if (QFile::exists(targetPath)) {
+            QMessageBox::StandardButton reply = QMessageBox::question(
+                this, "Conflict Detected",
+                QString("The file or folder '%1' already exists in the destination.\n\n"
+                        "Do you want to overwrite it?")
+                    .arg(originalName),
+                QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel,
+                QMessageBox::No
+                );
+
+            if (reply == QMessageBox::Yes) {
+                if (!moveToRecycleBin(targetPath)) {
+                    QMessageBox::warning(this, "Paste", "Failed to delete existing item:\n" + targetPath);
+                    continue;
+                }
+            } else if (reply == QMessageBox::No) {
+                renameInstead = true;
+            } else {
+                cancelThisItem = true;
+            }
+        }
+
+        if (cancelThisItem) continue;
+
+        // If renameInstead is true, generate unique name
+        while (renameInstead && QFile::exists(targetPath)) {
             QString newName;
             if (isFile) {
                 newName = QString("%1_%2%3").arg(baseName).arg(counter++)
@@ -312,6 +340,30 @@ void CExplorer::paste() {
     static_cast<CFileSystemModel *>(model)->clearCutPaths(); // Clear grayed items
 
     QMessageBox::information(this, "Paste", "Paste operation completed.");
+}
+
+bool CExplorer::moveToRecycleBin(const QString &path) {
+    QFileInfo fileInfo(path);
+
+#ifdef Q_OS_WIN
+    QString pathWithNull = QDir::toNativeSeparators(path) + '\0';
+
+    SHFILEOPSTRUCT fileOp = {};
+    fileOp.wFunc = FO_DELETE;
+    fileOp.pFrom = reinterpret_cast<LPCWSTR>(pathWithNull.utf16());
+    fileOp.fFlags = FOF_ALLOWUNDO | FOF_NOCONFIRMATION | FOF_SILENT;
+
+    if (SHFileOperation(&fileOp) == 0) {
+        return true;
+    }
+#endif
+
+    if (fileInfo.isDir()) {
+        QDir dir(path);
+        return dir.removeRecursively();
+    } else {
+        return QFile::remove(path);
+    }
 }
 
 void CExplorer::deleteItems() {

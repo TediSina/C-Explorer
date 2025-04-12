@@ -19,6 +19,7 @@ private slots:
     void cut();
     bool copyFolderRecursively(const QString &sourceFolder, const QString &destinationFolder);
     void paste();
+    bool moveToRecycleBin(const QString &path);
     void deleteItems();
     void renameFolder();
     void copyPath();
