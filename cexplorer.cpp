@@ -22,20 +22,56 @@
 #include <QGuiApplication>
 #include <QApplication>
 #include <QDir>
+#include <QSplitter>
 
 CExplorer::CExplorer() {
     QWidget *centralWidget = new QWidget(this);
-    QVBoxLayout *layout = new QVBoxLayout(centralWidget);
+    QVBoxLayout *mainLayout = new QVBoxLayout(centralWidget);
 
-    model = new CFileSystemModel(this);
-    model->setRootPath("");
+    locationBar = new QLineEdit(this);
+    mainLayout->addWidget(locationBar);
+
+    QSplitter *splitter = new QSplitter(Qt::Horizontal, this);
 
     treeView = new QTreeView(this);
+    model = new CFileSystemModel(this);
+    model->setRootPath("");
     treeView->setModel(model);
     treeView->setRootIndex(QModelIndex());
     treeView->setSelectionMode(QAbstractItemView::ExtendedSelection);
+    treeView->setHeaderHidden(true);
 
-    connect(treeView, &QTreeView::doubleClicked, this, [this](const QModelIndex &index) {
+    splitter->addWidget(treeView);
+    splitter->setStretchFactor(0, 1);
+
+    contentView = new QTreeView(this);
+    contentView->setModel(model);
+    treeView->setRootIndex(QModelIndex());
+    contentView->setSelectionMode(QAbstractItemView::ExtendedSelection);
+    contentView->setAlternatingRowColors(true);
+
+    splitter->addWidget(contentView);
+    splitter->setStretchFactor(1, 3);
+
+    mainLayout->addWidget(splitter);
+    centralWidget->setLayout(mainLayout);
+    setCentralWidget(centralWidget);
+
+    connect(treeView, &QTreeView::clicked, this, [=](const QModelIndex &index) {
+        if (model->isDir(index)) {
+            contentView->setRootIndex(index);
+            locationBar->setText(model->filePath(index));
+        }
+    });
+
+    connect(treeView, &QTreeView::doubleClicked, this, [=](const QModelIndex &index) {
+        if (!model->isDir(index)) {
+            QString filePath = model->filePath(index);
+            QDesktopServices::openUrl(QUrl::fromLocalFile(filePath));
+        }
+    });
+
+    connect(contentView, &QTreeView::doubleClicked, this, [=](const QModelIndex &index) {
         if (!model->isDir(index)) {
             QString filePath = model->filePath(index);
             QDesktopServices::openUrl(QUrl::fromLocalFile(filePath));
@@ -44,10 +80,6 @@ CExplorer::CExplorer() {
 
     treeView->setContextMenuPolicy(Qt::CustomContextMenu);
     connect(treeView, &QTreeView::customContextMenuRequested, this, &CExplorer::showContextMenu);
-
-    layout->addWidget(treeView);
-    centralWidget->setLayout(layout);
-    setCentralWidget(centralWidget);
 }
 
 void CExplorer::showContextMenu(const QPoint &pos) {

@@ -5,6 +5,7 @@
 
 #include <QMainWindow>
 #include <QTreeView>
+#include <QLineEdit>
 
 class CExplorer : public QMainWindow {
     Q_OBJECT
@@ -29,7 +30,11 @@ private slots:
 
 private:
     CFileSystemModel *model;
+
     QTreeView *treeView;
+    QTreeView *contentView;
+    QLineEdit *locationBar;
+
     QModelIndex selectedIndex;
     QStringList cutPaths;
     bool isCutOperation = false;
