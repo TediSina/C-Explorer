@@ -39,7 +39,6 @@ CExplorer::CExplorer() {
     treeView->setModel(model);
     treeView->setRootIndex(QModelIndex());
     treeView->setSelectionMode(QAbstractItemView::ExtendedSelection);
-    treeView->setHeaderHidden(true);
 
     splitter->addWidget(treeView);
     splitter->setStretchFactor(0, 1);
