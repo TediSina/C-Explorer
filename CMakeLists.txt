@@ -17,6 +17,7 @@ set(TS_FILES C-Explorer_sq_AL.ts)
 set(PROJECT_SOURCES
         main.cpp
         ${TS_FILES}
+        resources.qrc
 )
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)

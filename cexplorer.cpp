@@ -33,28 +33,61 @@ CExplorer::CExplorer() {
 
     QSplitter *splitter = new QSplitter(Qt::Horizontal, this);
 
-    treeView = new QTreeView(this);
+    QWidget *leftPanel = new QWidget(this);
+    QVBoxLayout *leftLay = new QVBoxLayout(leftPanel);
+    leftLay->setContentsMargins(0,0,0,0);
+    leftLay->setSpacing(0);
+
+    pinnedList = new QListWidget(this);
+    pinnedList->setViewMode(QListWidget::ListMode);
+    pinnedList->setUniformItemSizes(true);
+    pinnedList->setIconSize(QSize(16,16));
+    pinnedList->setFixedHeight(140);
+    leftLay->addWidget(pinnedList);
+
     model = new CFileSystemModel(this);
-    model->setRootPath("");
+    model->setRootPath(QString{});
+    treeView = new QTreeView(this);
     treeView->setModel(model);
     treeView->setRootIndex(QModelIndex());
     treeView->setSelectionMode(QAbstractItemView::ExtendedSelection);
+    leftLay->addWidget(treeView);
 
-    splitter->addWidget(treeView);
-    splitter->setStretchFactor(0, 1);
+    splitter->addWidget(leftPanel);
 
     contentView = new QTreeView(this);
     contentView->setModel(model);
-    treeView->setRootIndex(QModelIndex());
+    contentView->setRootIndex(QModelIndex());
     contentView->setSelectionMode(QAbstractItemView::ExtendedSelection);
     contentView->setAlternatingRowColors(true);
-
     splitter->addWidget(contentView);
-    splitter->setStretchFactor(1, 3);
 
+    splitter->setStretchFactor(1, 3);
     mainLayout->addWidget(splitter);
-    centralWidget->setLayout(mainLayout);
+
     setCentralWidget(centralWidget);
+
+    populatePinnedFolders();
+
+    connect(pinnedList, &QListWidget::itemClicked, this,
+        [this](QListWidgetItem *item){
+            const QString path = item->data(Qt::UserRole).toString();
+            QModelIndex idx;
+            if (path.isEmpty()) {
+                treeView->setCurrentIndex(idx);
+                contentView->setRootIndex(QModelIndex());
+                locationBar->setText("This PC");
+            } else {
+                idx = model->index(path);
+                locationBar->setText(path);
+
+                if (idx.isValid()) {
+                    treeView->setCurrentIndex(idx);
+                    contentView->setRootIndex(idx);
+                }
+            }
+        }
+    );
 
     connect(treeView, &QTreeView::clicked, this, [=](const QModelIndex &index) {
         if (model->isDir(index)) {
@@ -79,6 +112,31 @@ CExplorer::CExplorer() {
 
     treeView->setContextMenuPolicy(Qt::CustomContextMenu);
     connect(treeView, &QTreeView::customContextMenuRequested, this, &CExplorer::showContextMenu);
+}
+
+void CExplorer::populatePinnedFolders()
+{
+    struct Item { QString name; QString path; };
+
+    QList<Item> items = {
+        { tr("Desktop"),   QStandardPaths::writableLocation(QStandardPaths::DesktopLocation)  },
+        { tr("This PC"),   QString{} },
+        { tr("Downloads"), QStandardPaths::writableLocation(QStandardPaths::DownloadLocation) },
+        { tr("Pictures"),  QStandardPaths::writableLocation(QStandardPaths::PicturesLocation) },
+        { tr("Music"),     QStandardPaths::writableLocation(QStandardPaths::MusicLocation)    },
+        { tr("Videos"),    QStandardPaths::writableLocation(QStandardPaths::MoviesLocation)   }
+    };
+
+    QFileIconProvider iconProv;
+    for (const Item &it : items) {
+        auto *wItem = new QListWidgetItem(it.name);
+        wItem->setData(Qt::UserRole, it.path);
+        if (it.path.isEmpty())
+            wItem->setIcon(QIcon(":/icons/pc.png"));
+        else
+            wItem->setIcon(iconProv.icon(QFileInfo(it.path)));
+        pinnedList->addItem(wItem);
+    }
 }
 
 void CExplorer::showContextMenu(const QPoint &pos) {

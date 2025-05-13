@@ -6,6 +6,9 @@
 #include <QMainWindow>
 #include <QTreeView>
 #include <QLineEdit>
+#include <QListWidget>
+#include <QStandardPaths>
+#include <QFileIconProvider>
 
 class CExplorer : public QMainWindow {
     Q_OBJECT
@@ -31,6 +34,7 @@ private slots:
 private:
     CFileSystemModel *model;
 
+    QListWidget *pinnedList;
     QTreeView *treeView;
     QTreeView *contentView;
     QLineEdit *locationBar;
@@ -38,6 +42,8 @@ private:
     QModelIndex selectedIndex;
     QStringList cutPaths;
     bool isCutOperation = false;
+
+    void populatePinnedFolders();
 };
 
 #endif // CEXPLORER_H
