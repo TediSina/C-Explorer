@@ -74,7 +74,6 @@ CExplorer::CExplorer() {
             const QString path = item->data(Qt::UserRole).toString();
             QModelIndex idx;
             if (path.isEmpty()) {
-                treeView->setCurrentIndex(idx);
                 contentView->setRootIndex(QModelIndex());
                 locationBar->setText("This PC");
             } else {
@@ -82,7 +81,6 @@ CExplorer::CExplorer() {
                 locationBar->setText(path);
 
                 if (idx.isValid()) {
-                    treeView->setCurrentIndex(idx);
                     contentView->setRootIndex(idx);
                 }
             }
