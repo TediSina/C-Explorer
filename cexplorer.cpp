@@ -23,13 +23,25 @@
 #include <QApplication>
 #include <QDir>
 #include <QSplitter>
+#include <QHeaderView>
+#include <QToolButton>
 
 CExplorer::CExplorer() {
     QWidget *centralWidget = new QWidget(this);
     QVBoxLayout *mainLayout = new QVBoxLayout(centralWidget);
 
-    locationBar = new QLineEdit(this);
-    mainLayout->addWidget(locationBar);
+    QHBoxLayout *navLayout = new QHBoxLayout;
+    backButton = new QToolButton(this);
+    backButton->setText("<");
+    forwardButton = new QToolButton(this);
+    forwardButton->setText(">");
+    locationBar = new QLineEdit(QString("This PC"), this);
+
+    navLayout->addWidget(backButton);
+    navLayout->addWidget(forwardButton);
+    navLayout->addWidget(locationBar);
+
+    mainLayout->addLayout(navLayout);
 
     QSplitter *splitter = new QSplitter(Qt::Horizontal, this);
 
@@ -55,13 +67,16 @@ CExplorer::CExplorer() {
 
     splitter->addWidget(leftPanel);
 
-    contentView = new QTreeView(this);
+    contentView = new QTableView(this);
     contentView->setModel(model);
     contentView->setRootIndex(QModelIndex());
     contentView->setSelectionMode(QAbstractItemView::ExtendedSelection);
     contentView->setAlternatingRowColors(true);
-    splitter->addWidget(contentView);
+    contentView->setSortingEnabled(true);
+    contentView->horizontalHeader()->setStretchLastSection(true);
+    contentView->setShowGrid(false);
 
+    splitter->addWidget(contentView);
     splitter->setStretchFactor(1, 3);
     mainLayout->addWidget(splitter);
 
@@ -69,28 +84,9 @@ CExplorer::CExplorer() {
 
     populatePinnedFolders();
 
-    connect(pinnedList, &QListWidget::itemClicked, this,
-        [this](QListWidgetItem *item){
-            const QString path = item->data(Qt::UserRole).toString();
-            QModelIndex idx;
-            if (path.isEmpty()) {
-                contentView->setRootIndex(QModelIndex());
-                locationBar->setText("This PC");
-            } else {
-                idx = model->index(path);
-                locationBar->setText(path);
-
-                if (idx.isValid()) {
-                    contentView->setRootIndex(idx);
-                }
-            }
-        }
-    );
-
     connect(treeView, &QTreeView::clicked, this, [=](const QModelIndex &index) {
         if (model->isDir(index)) {
-            contentView->setRootIndex(index);
-            locationBar->setText(model->filePath(index));
+            navigateTo(model->filePath(index));
         }
     });
 
@@ -101,15 +97,68 @@ CExplorer::CExplorer() {
         }
     });
 
-    connect(contentView, &QTreeView::doubleClicked, this, [=](const QModelIndex &index) {
-        if (!model->isDir(index)) {
-            QString filePath = model->filePath(index);
-            QDesktopServices::openUrl(QUrl::fromLocalFile(filePath));
+    connect(contentView, &QTableView::doubleClicked, this, [=](const QModelIndex &index) {
+        if (!index.isValid())
+            return;
+
+        QString path = model->filePath(index);
+        if (model->isDir(index)) {
+            navigateTo(path);
+        } else {
+            QDesktopServices::openUrl(QUrl::fromLocalFile(path));
+        }
+    });
+
+    connect(pinnedList, &QListWidget::itemClicked, this, [this](QListWidgetItem *item) {
+        const QString path = item->data(Qt::UserRole).toString();
+        navigateTo(path);
+    });
+
+    connect(backButton, &QToolButton::clicked, this, [=] {
+        if (!backHistory.isEmpty()) {
+            forwardHistory.push(locationBar->text());
+            QString prev = backHistory.pop();
+            updatingFromHistory = true;
+            if (prev != QString("This PC")) {
+                navigateTo(prev);
+            } else {
+                navigateTo(QString("This PC"));
+            }
+            updatingFromHistory = false;
+        }
+    });
+
+    connect(forwardButton, &QToolButton::clicked, this, [=] {
+        if (!forwardHistory.isEmpty()) {
+            backHistory.push(locationBar->text());
+            QString next = forwardHistory.pop();
+            updatingFromHistory = true;
+            navigateTo(next);
+            updatingFromHistory = false;
         }
     });
 
     treeView->setContextMenuPolicy(Qt::CustomContextMenu);
     connect(treeView, &QTreeView::customContextMenuRequested, this, &CExplorer::showContextMenu);
+}
+
+void CExplorer::navigateTo(const QString &path) {
+    if (path.isEmpty()) {
+        contentView->setRootIndex(QModelIndex());
+        locationBar->setText("This PC");
+        return;
+    }
+
+    QModelIndex idx = model->index(path);
+    if (!idx.isValid()) return;
+
+    contentView->setRootIndex(idx);
+    locationBar->setText(path);
+
+    if (!updatingFromHistory)
+        backHistory.push(path);
+
+    forwardHistory.clear(); // reset forward history on new navigation
 }
 
 void CExplorer::populatePinnedFolders()

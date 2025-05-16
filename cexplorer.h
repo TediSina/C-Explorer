@@ -5,6 +5,9 @@
 
 #include <QMainWindow>
 #include <QTreeView>
+#include <QTableView>
+#include <QToolButton>
+#include <QStack>
 #include <QLineEdit>
 #include <QListWidget>
 #include <QStandardPaths>
@@ -17,6 +20,7 @@ public:
     CExplorer();
 
 private slots:
+    void navigateTo(const QString &path);
     void showContextMenu(const QPoint &pos);
     void renameFile();
     void copy();
@@ -34,9 +38,16 @@ private slots:
 private:
     CFileSystemModel *model;
 
+    QToolButton *backButton;
+    QToolButton *forwardButton;
+
+    QStack<QString> backHistory;
+    QStack<QString> forwardHistory;
+    bool updatingFromHistory = false;
+
     QListWidget *pinnedList;
     QTreeView *treeView;
-    QTreeView *contentView;
+    QTableView *contentView;
     QLineEdit *locationBar;
 
     QModelIndex selectedIndex;
