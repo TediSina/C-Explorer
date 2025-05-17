@@ -122,7 +122,7 @@ CExplorer::CExplorer() {
             if (prev != QString("This PC")) {
                 navigateTo(prev);
             } else {
-                navigateTo(QString("This PC"));
+                navigateTo(QString(""));
             }
             updatingFromHistory = false;
         }
@@ -139,7 +139,12 @@ CExplorer::CExplorer() {
     });
 
     treeView->setContextMenuPolicy(Qt::CustomContextMenu);
-    connect(treeView, &QTreeView::customContextMenuRequested, this, &CExplorer::showContextMenu);
+    contentView->setContextMenuPolicy(Qt::CustomContextMenu);
+
+    connect(treeView, &QTreeView::customContextMenuRequested,
+            this, [this](const QPoint &pos) { showContextMenu(pos, treeView); });
+    connect(contentView, &QTableView::customContextMenuRequested,
+            this, [this](const QPoint &pos) { showContextMenu(pos, contentView); });
 }
 
 void CExplorer::navigateTo(const QString &path) {
@@ -186,8 +191,8 @@ void CExplorer::populatePinnedFolders()
     }
 }
 
-void CExplorer::showContextMenu(const QPoint &pos) {
-    selectedIndex = treeView->indexAt(pos);
+void CExplorer::showContextMenu(const QPoint &pos, QAbstractItemView *view) {
+    selectedIndex = view->indexAt(pos);
     if (!selectedIndex.isValid()) return;
 
     QString filePath = model->filePath(selectedIndex);
@@ -253,7 +258,7 @@ void CExplorer::showContextMenu(const QPoint &pos) {
         connect(propertiesAction, &QAction::triggered, this, &CExplorer::showProperties);
     }
 
-    contextMenu.exec(treeView->viewport()->mapToGlobal(pos));
+    contextMenu.exec(view->viewport()->mapToGlobal(pos));
 }
 
 void CExplorer::renameFile() {
