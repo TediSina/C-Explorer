@@ -71,6 +71,7 @@ CExplorer::CExplorer() {
     contentView->setModel(model);
     contentView->setRootIndex(QModelIndex());
     contentView->setSelectionMode(QAbstractItemView::ExtendedSelection);
+    contentView->setSelectionBehavior(QAbstractItemView::SelectRows);
     contentView->setAlternatingRowColors(true);
     contentView->setSortingEnabled(true);
     contentView->horizontalHeader()->setStretchLastSection(true);
@@ -275,7 +276,12 @@ void CExplorer::renameFile() {
 
 void CExplorer::copy() {
     // Get all selected indexes (to support multi-selection)
-    QModelIndexList selectedIndexes = treeView->selectionModel()->selectedIndexes();
+    QModelIndexList selectedIndexes;
+
+    if (treeView->hasFocus())
+        selectedIndexes = treeView->selectionModel()->selectedRows();
+    else if (contentView->hasFocus())
+        selectedIndexes = contentView->selectionModel()->selectedRows();
 
     if (selectedIndexes.isEmpty()) {
         QMessageBox::warning(this, "Copy", "No files or folders selected to copy.");
@@ -308,7 +314,13 @@ void CExplorer::copy() {
 }
 
 void CExplorer::cut() {
-    const auto selectedIndexes = treeView->selectionModel()->selectedRows();
+    QModelIndexList selectedIndexes;
+
+    if (treeView->hasFocus())
+        selectedIndexes = treeView->selectionModel()->selectedRows();
+    else if (contentView->hasFocus())
+        selectedIndexes = contentView->selectionModel()->selectedRows();
+
     if (selectedIndexes.isEmpty()) return;
 
     cutPaths.clear();
@@ -508,7 +520,12 @@ bool CExplorer::moveToRecycleBin(const QString &path) {
 }
 
 void CExplorer::deleteItems() {
-    const auto selectedIndexes = treeView->selectionModel()->selectedRows();
+    QModelIndexList selectedIndexes;
+
+    if (treeView->hasFocus())
+        selectedIndexes = treeView->selectionModel()->selectedRows();
+    else if (contentView->hasFocus())
+        selectedIndexes = contentView->selectionModel()->selectedRows();
 
     if (selectedIndexes.isEmpty()) return;
 
