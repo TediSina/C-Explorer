@@ -139,6 +139,8 @@ CExplorer::CExplorer() {
         }
     });
 
+    connect(locationBar, &QLineEdit::returnPressed, this, &CExplorer::handleLocationBarInput);
+
     treeView->setContextMenuPolicy(Qt::CustomContextMenu);
     contentView->setContextMenuPolicy(Qt::CustomContextMenu);
 
@@ -189,6 +191,26 @@ void CExplorer::populatePinnedFolders()
         else
             wItem->setIcon(iconProv.icon(QFileInfo(it.path)));
         pinnedList->addItem(wItem);
+    }
+}
+
+void CExplorer::handleLocationBarInput() {
+    QString inputPath = locationBar->text().trimmed();
+    QFileInfo info(inputPath);
+
+    if (info.exists()) {
+        if (info.isDir()) {
+            QModelIndex index = model->index(inputPath);
+            if (index.isValid()) {
+                contentView->setRootIndex(index);
+                locationBar->setText(model->filePath(index));
+            }
+        } else if (info.isFile()) {
+            QDesktopServices::openUrl(QUrl::fromLocalFile(inputPath));
+        }
+    } else {
+        QModelIndex currentIndex = contentView->rootIndex();
+        locationBar->setText(model->filePath(currentIndex));
     }
 }
 

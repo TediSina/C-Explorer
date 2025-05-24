@@ -22,6 +22,7 @@ public:
 private slots:
     void navigateTo(const QString &path);
     void showContextMenu(const QPoint &pos, QAbstractItemView *view);
+    void handleLocationBarInput();
     void renameFile();
     void copy();
     void cut();
