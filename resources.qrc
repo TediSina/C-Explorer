@@ -1,5 +1,6 @@
 <RCC>
     <qresource prefix="/">
         <file>icons/pc.png</file>
+        <file>icons/C-Explorer.ico</file>
     </qresource>
 </RCC>
