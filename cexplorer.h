@@ -12,6 +12,7 @@
 #include <QListWidget>
 #include <QStandardPaths>
 #include <QFileIconProvider>
+#include <QStandardItemModel>
 
 class CExplorer : public QMainWindow {
     Q_OBJECT
@@ -21,6 +22,7 @@ public:
 
 private slots:
     void navigateTo(const QString &path);
+    void performSearch(const QString &query, const QString &location);
     void showContextMenu(const QPoint &pos, QAbstractItemView *view);
     void renameFile();
     void copy();
@@ -48,7 +50,12 @@ private:
     QListWidget *pinnedList;
     QTreeView *treeView;
     QTableView *contentView;
+
     QLineEdit *locationBar;
+
+    QLineEdit *searchBar;
+    QStandardItemModel *searchResultsModel;
+    bool inSearchMode = false;
 
     QModelIndex selectedIndex;
     QStringList cutPaths;

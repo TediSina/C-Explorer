@@ -35,11 +35,33 @@ CExplorer::CExplorer() {
     backButton->setText("<");
     forwardButton = new QToolButton(this);
     forwardButton->setText(">");
+
+    searchResultsModel = new QStandardItemModel(this);
+
     locationBar = new QLineEdit(QString("This PC"), this);
+    searchBar = new QLineEdit(this);
+    searchBar->setPlaceholderText("Search");
+
+    searchBar->setFixedHeight(30);
+    locationBar->setFixedHeight(30);
+
+    locationBar->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    searchBar->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
+    searchBar->setMaximumWidth(250);
+
+    QHBoxLayout *locationSearchLayout = new QHBoxLayout;
+    locationSearchLayout->setContentsMargins(0, 0, 0, 0);
+    locationSearchLayout->setSpacing(0);
+    locationSearchLayout->addWidget(locationBar, 3);
+    locationSearchLayout->addWidget(searchBar, 1);
+
+    QWidget *locationSearchWidget = new QWidget(this);
+    locationSearchWidget->setLayout(locationSearchLayout);
+    locationSearchWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 
     navLayout->addWidget(backButton);
     navLayout->addWidget(forwardButton);
-    navLayout->addWidget(locationBar);
+    navLayout->addWidget(locationSearchWidget);
 
     mainLayout->addLayout(navLayout);
 
@@ -102,6 +124,14 @@ CExplorer::CExplorer() {
         if (!index.isValid())
             return;
 
+        if (inSearchMode) {
+            QString path = searchResultsModel->item(index.row(), 4)->text();
+            navigateTo(path);
+            contentView->setModel(model);
+            inSearchMode = false;
+            return;
+        }
+
         QString path = model->filePath(index);
         if (model->isDir(index)) {
             navigateTo(path);
@@ -144,6 +174,18 @@ CExplorer::CExplorer() {
         navigateTo(inputPath);
     });
 
+    connect(searchBar, &QLineEdit::returnPressed, this, [=] {
+        QString currentLocation = locationBar->text();
+        QString query = searchBar->text().trimmed();
+
+        if (!query.isEmpty()) {
+            QString searchUri = QString("search:query=%1&location=%2")
+            .arg(QUrl::toPercentEncoding(query),
+                 QUrl::toPercentEncoding(currentLocation));
+            navigateTo(searchUri);
+        }
+    });
+
     treeView->setContextMenuPolicy(Qt::CustomContextMenu);
     contentView->setContextMenuPolicy(Qt::CustomContextMenu);
 
@@ -154,6 +196,11 @@ CExplorer::CExplorer() {
 }
 
 void CExplorer::navigateTo(const QString &path) {
+    if (inSearchMode) {
+        contentView->setModel(model);
+        inSearchMode = false;
+    }
+
     if (path.isEmpty()) {
         if (!updatingFromHistory) {
             QString currentPath = locationBar->text();
@@ -164,6 +211,32 @@ void CExplorer::navigateTo(const QString &path) {
         }
         contentView->setRootIndex(QModelIndex());
         locationBar->setText("This PC");
+        return;
+    }
+
+    if (path.startsWith("search:")) {
+        if (!updatingFromHistory) {
+            backHistory.push(locationBar->text());
+            forwardHistory.clear();
+        }
+        QStringList parts = path.mid(QString("search:").length()).split("&");
+        QString query, location;
+
+        for (const QString &part : std::as_const(parts)) {
+            if (part.startsWith("query=")) {
+                query = QUrl::fromPercentEncoding(part.mid(6).toUtf8());
+            } else if (part.startsWith("location=")) {
+                location = QUrl::fromPercentEncoding(part.mid(9).toUtf8());
+            }
+        }
+
+        if (!location.isEmpty()) {
+            locationBar->setText(QString("Search Results in %1").arg(location));
+        } else {
+            locationBar->setText("Search Results");
+        }
+
+        performSearch(query, location);
         return;
     }
 
@@ -192,6 +265,57 @@ void CExplorer::navigateTo(const QString &path) {
     } else if (info.isFile()) {
         QDesktopServices::openUrl(QUrl::fromLocalFile(cleanPath));
     }
+}
+
+void CExplorer::performSearch(const QString &query, const QString &location) {
+    if (location.isEmpty()) return;
+
+    QModelIndex rootIndex = model->index(location);
+    if (!rootIndex.isValid()) return;
+
+    searchResultsModel->clear();
+    searchResultsModel->setHorizontalHeaderLabels({"Name", "Size", "Type", "Date Modified", "Path"});
+
+    std::function<void(const QModelIndex&)> searchRecursive = [&](const QModelIndex &parent) {
+        int rowCount = model->rowCount(parent);
+        for (int row = 0; row < rowCount; ++row) {
+            QModelIndex index = model->index(row, 0, parent);
+            QString name = model->fileName(index);
+
+            if (name.contains(query, Qt::CaseInsensitive)) {
+                QFileInfo info = model->fileInfo(index);
+
+                QStandardItem *nameItem = new QStandardItem(model->fileIcon(index), name);
+                QStandardItem *sizeItem = new QStandardItem(info.isDir() ? "" : QString::number(info.size()));
+                QStandardItem *typeItem = new QStandardItem(model->type(index));
+                QStandardItem *dateItem = new QStandardItem(info.lastModified().toString("yyyy-MM-dd hh:mm"));
+                QStandardItem *pathItem = new QStandardItem(info.absoluteFilePath());
+
+                nameItem->setEditable(false);
+                sizeItem->setEditable(false);
+                typeItem->setEditable(false);
+                dateItem->setEditable(false);
+                pathItem->setEditable(false);
+
+                searchResultsModel->appendRow({nameItem, sizeItem, typeItem, dateItem, pathItem});
+            }
+
+            if (model->isDir(index)) {
+                searchRecursive(index);
+            }
+        }
+    };
+
+    searchRecursive(rootIndex);
+
+    contentView->setModel(searchResultsModel);
+    contentView->setRootIndex(QModelIndex());
+    contentView->setColumnWidth(0, 250);
+    contentView->setColumnWidth(1, 100);
+    contentView->setColumnWidth(2, 150);
+    contentView->setColumnWidth(3, 150);
+
+    inSearchMode = true;
 }
 
 void CExplorer::populatePinnedFolders()
