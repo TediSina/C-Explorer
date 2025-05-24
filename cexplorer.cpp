@@ -139,7 +139,10 @@ CExplorer::CExplorer() {
         }
     });
 
-    connect(locationBar, &QLineEdit::returnPressed, this, &CExplorer::handleLocationBarInput);
+    connect(locationBar, &QLineEdit::returnPressed, this, [=] {
+        QString inputPath = locationBar->text().trimmed();
+        navigateTo(inputPath);
+    });
 
     treeView->setContextMenuPolicy(Qt::CustomContextMenu);
     contentView->setContextMenuPolicy(Qt::CustomContextMenu);
@@ -152,21 +155,43 @@ CExplorer::CExplorer() {
 
 void CExplorer::navigateTo(const QString &path) {
     if (path.isEmpty()) {
+        if (!updatingFromHistory) {
+            QString currentPath = locationBar->text();
+            if (!currentPath.isEmpty() && currentPath != "This PC") {
+                backHistory.push(currentPath);
+                forwardHistory.clear();
+            }
+        }
         contentView->setRootIndex(QModelIndex());
         locationBar->setText("This PC");
         return;
     }
 
-    QModelIndex idx = model->index(path);
-    if (!idx.isValid()) return;
+    QString cleanPath = QDir::cleanPath(path);
+    QFileInfo info(cleanPath);
+    if (!info.exists()) {
+        QModelIndex currentIndex = contentView->rootIndex();
+        locationBar->setText(model->filePath(currentIndex));
+        return;
+    }
 
-    contentView->setRootIndex(idx);
-    locationBar->setText(path);
+    if (!updatingFromHistory) {
+        QString currentPath = locationBar->text();
+        if (!currentPath.isEmpty() && currentPath != cleanPath) {
+            backHistory.push(currentPath);
+            forwardHistory.clear();
+        }
+    }
 
-    if (!updatingFromHistory)
-        backHistory.push(path);
-
-    forwardHistory.clear(); // reset forward history on new navigation
+    if (info.isDir()) {
+        QModelIndex index = model->index(cleanPath);
+        if (index.isValid()) {
+            contentView->setRootIndex(index);
+            locationBar->setText(model->filePath(index));
+        }
+    } else if (info.isFile()) {
+        QDesktopServices::openUrl(QUrl::fromLocalFile(cleanPath));
+    }
 }
 
 void CExplorer::populatePinnedFolders()
@@ -191,26 +216,6 @@ void CExplorer::populatePinnedFolders()
         else
             wItem->setIcon(iconProv.icon(QFileInfo(it.path)));
         pinnedList->addItem(wItem);
-    }
-}
-
-void CExplorer::handleLocationBarInput() {
-    QString inputPath = locationBar->text().trimmed();
-    QFileInfo info(inputPath);
-
-    if (info.exists()) {
-        if (info.isDir()) {
-            QModelIndex index = model->index(inputPath);
-            if (index.isValid()) {
-                contentView->setRootIndex(index);
-                locationBar->setText(model->filePath(index));
-            }
-        } else if (info.isFile()) {
-            QDesktopServices::openUrl(QUrl::fromLocalFile(inputPath));
-        }
-    } else {
-        QModelIndex currentIndex = contentView->rootIndex();
-        locationBar->setText(model->filePath(currentIndex));
     }
 }
 
