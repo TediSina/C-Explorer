@@ -353,7 +353,6 @@ void CExplorer::showContextMenu(const QPoint &pos, QAbstractItemView *view) {
     QMenu contextMenu(this);
 
     if (fileInfo.isFile()) {
-        // File Context Menu
         QAction *cutAction = contextMenu.addAction("Cut");
         QAction *copyAction = contextMenu.addAction("Copy");
         QAction *deleteAction = contextMenu.addAction("Delete");
@@ -375,7 +374,6 @@ void CExplorer::showContextMenu(const QPoint &pos, QAbstractItemView *view) {
         connect(propertiesAction, &QAction::triggered, this, &CExplorer::showProperties);
     }
     else if (fileInfo.isDir() && !filePath.endsWith(":/")) {
-        // Folder Context Menu (excluding drives)
         QAction *cutAction = contextMenu.addAction("Cut");
         QAction *copyAction = contextMenu.addAction("Copy");
         QAction *deleteAction = contextMenu.addAction("Delete");
@@ -397,7 +395,6 @@ void CExplorer::showContextMenu(const QPoint &pos, QAbstractItemView *view) {
         connect(propertiesAction, &QAction::triggered, this, &CExplorer::showProperties);
     }
     else {
-        // Drive Context Menu
         QAction *pasteAction = contextMenu.addAction("Paste");
         QAction *copyPathAction = contextMenu.addAction("Copy Drive Path");
         QAction *createFileAction = contextMenu.addAction("Create New File");
@@ -426,7 +423,6 @@ void CExplorer::renameFile() {
 }
 
 void CExplorer::copy() {
-    // Get all selected indexes (to support multi-selection)
     QModelIndexList selectedIndexes;
 
     if (treeView->hasFocus())
@@ -440,10 +436,9 @@ void CExplorer::copy() {
     }
 
     QList<QUrl> urls;
-    QSet<QString> addedPaths;  // Avoid duplicate entries (especially due to multiple columns)
+    QSet<QString> addedPaths;
 
     for (const QModelIndex &index : std::as_const(selectedIndexes)) {
-        // Skip duplicate indexes from different columns
         QString path = model->filePath(index);
         if (addedPaths.contains(path)) continue;
 
@@ -489,7 +484,6 @@ void CExplorer::cut() {
     QGuiApplication::clipboard()->setMimeData(mimeData);
     isCutOperation = true;
 
-    // Set cut paths visually
     static_cast<CFileSystemModel *>(model)->setCutPaths(cutPaths);
 }
 
@@ -557,7 +551,6 @@ void CExplorer::paste() {
         QString originalName = sourceInfo.fileName();
         QString targetPath = destinationDirPath + QDir::separator() + originalName;
 
-        // Skip cut-paste if source and target paths are identical
         if (isCutOperation && cutPaths.contains(sourcePath) &&
             sourceInfo.absoluteFilePath() == QFileInfo(targetPath).absoluteFilePath()) {
             continue;
@@ -568,13 +561,11 @@ void CExplorer::paste() {
         bool isFile = sourceInfo.isFile();
         int counter = 1;
 
-        // Separate base name and extension if it's a file
         if (isFile) {
             baseName = sourceInfo.completeBaseName();
             extension = sourceInfo.suffix();
         }
 
-        // Conflict resolution
         bool renameInstead = false;
         bool cancelThisItem = false;
 
@@ -602,7 +593,6 @@ void CExplorer::paste() {
 
         if (cancelThisItem) continue;
 
-        // If renameInstead is true, generate unique name
         while (renameInstead && QFile::exists(targetPath)) {
             QString newName;
             if (isFile) {
@@ -617,7 +607,6 @@ void CExplorer::paste() {
 
         bool success = false;
 
-        // If cutting, move instead of copy
         if (isCutOperation && cutPaths.contains(sourcePath)) {
             if (sourceInfo.isFile()) {
                 success = QFile::rename(sourcePath, targetPath);
@@ -638,10 +627,9 @@ void CExplorer::paste() {
         }
     }
 
-    // Clear cut state
     cutPaths.clear();
     isCutOperation = false;
-    static_cast<CFileSystemModel *>(model)->clearCutPaths(); // Clear grayed items
+    static_cast<CFileSystemModel *>(model)->clearCutPaths();
 
     QMessageBox::information(this, "Paste", "Paste operation completed.");
 }
@@ -703,7 +691,7 @@ void CExplorer::deleteItems() {
         fileOp.fFlags = FOF_ALLOWUNDO | FOF_NOCONFIRMATION | FOF_SILENT;
 
         if (SHFileOperation(&fileOp) == 0) {
-            continue; // Successfully moved to Recycle Bin
+            continue;
         }
 #endif
 
@@ -762,7 +750,6 @@ void CExplorer::createFile() {
     QString dirPath = model->filePath(selectedIndex);
     QFileInfo info(dirPath);
 
-    // If right-clicked on a file, use its parent directory
     if (info.isFile()) {
         dirPath = info.absolutePath();
     } else if (!info.isDir()) {
@@ -772,13 +759,11 @@ void CExplorer::createFile() {
 
     QDir dir(dirPath);
 
-    // Ask the user for a file name (default is "NewFile.txt")
     bool ok;
     QString fileName = QInputDialog::getText(this, "Create File", "Enter file name:",
                                              QLineEdit::Normal, "NewFile.txt", &ok);
     if (!ok || fileName.isEmpty()) return;
 
-    // Static forbidden characters regex: \ / : * ? " < > |
     static const QRegularExpression forbiddenChars(R"([\\/:*?"<>|])");
 
     if (fileName.contains(forbiddenChars)) {
@@ -788,10 +773,9 @@ void CExplorer::createFile() {
 
     QString filePath = dir.filePath(fileName);
 
-    // Ensure unique filename by adding `_1`, `_2`, etc. before the extension if needed
     int counter = 1;
-    QString baseName = QFileInfo(fileName).completeBaseName(); // Name without extension
-    QString extension = QFileInfo(fileName).suffix(); // File extension
+    QString baseName = QFileInfo(fileName).completeBaseName();
+    QString extension = QFileInfo(fileName).suffix();
 
     while (QFile::exists(filePath)) {
         if (!extension.isEmpty()) {
@@ -801,7 +785,6 @@ void CExplorer::createFile() {
         }
     }
 
-    // Create the file
     QFile file(filePath);
     if (file.open(QIODevice::WriteOnly)) {
         file.close();
@@ -817,7 +800,6 @@ void CExplorer::createFolder() {
     QString dirPath = model->filePath(selectedIndex);
     QFileInfo info(dirPath);
 
-    // If it's a file, get the parent directory
     if (info.isFile()) {
         dirPath = info.absolutePath();
     } else if (!info.isDir()) {
@@ -827,13 +809,11 @@ void CExplorer::createFolder() {
 
     QDir dir(dirPath);
 
-    // Ask the user for a folder name (default is "NewFolder")
     bool ok;
     QString folderName = QInputDialog::getText(this, "Create Folder", "Enter folder name:",
                                                QLineEdit::Normal, "NewFolder", &ok);
     if (!ok || folderName.isEmpty()) return;
 
-    // Static forbidden characters regex for folder names
     static const QRegularExpression forbiddenChars(R"([\\/:*?"<>|])");
 
     if (folderName.contains(forbiddenChars)) {
@@ -843,13 +823,11 @@ void CExplorer::createFolder() {
 
     QString folderPath = dir.filePath(folderName);
 
-    // Ensure unique folder name by adding `_1`, `_2`, etc.
     int counter = 1;
     while (dir.exists(folderPath)) {
         folderPath = dir.filePath(QString("%1_%2").arg(folderName).arg(counter++));
     }
 
-    // Create the folder
     if (dir.mkdir(folderPath)) {
         QMessageBox::information(this, "Success", "Folder created successfully:\n" + folderPath);
     } else {
@@ -866,8 +844,8 @@ void CExplorer::showProperties() {
     SHELLEXECUTEINFOW sei = {};
     sei.cbSize = sizeof(SHELLEXECUTEINFOW);
     sei.fMask = SEE_MASK_INVOKEIDLIST;
-    sei.lpVerb = L"properties"; // Open properties window
-    sei.lpFile = reinterpret_cast<LPCWSTR>(path.utf16()); // Convert QString to LPCWSTR
+    sei.lpVerb = L"properties";
+    sei.lpFile = reinterpret_cast<LPCWSTR>(path.utf16());
     sei.nShow = SW_SHOWNORMAL;
 
     if (!ShellExecuteExW(&sei)) {
